@@ -1,0 +1,6 @@
+bin
+creds.json
+include
+lib
+lib64
+pyvenv.cfg
