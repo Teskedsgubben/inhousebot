@@ -1,5 +1,24 @@
 # Developer instructions
 
+## Setup
+
+Create a python venv, google it if you're a noob.
+
+In VS Code, navigate to *View -> Command palett -> Python: Select Interpreter*.
+
+Choose the venv python executable from the menu.
+
+Install dependencies in the venv:
+
+- `discord.py`
+- `dota2` 
+
+This would look something like
+
+`home/user/inhousebot/bin/python -m pip install {dependecy}`
+
+You can now start the bot by running bot.py and can use `Ctrl + C` to end it. To leave the bot running after the session, see Start the bot. This must be used on a server that is always on.
+
 ## Managing the bot
 
 ### Start the bot
