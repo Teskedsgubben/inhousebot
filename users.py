@@ -1,5 +1,17 @@
 import json
 import datetime
+from emojis import emojis
+
+medals = {
+    'herald': '<:Herald:843856608353845269>',
+    'guardian': '<:Guardian:843856608831995964>',
+    'crusader': '<:Crusader:843856608471941173>',
+    'archon': '<:Archon:843856608815087626>',
+    'legend': '<:Legend:843856608785858601>',
+    'ancient': '<:Ancient:843856608882589747>',
+    'divine': '<:Divine:843856608609828865>',
+    'immortal': '<:Immortal:843856609477787719>'
+}
 
 class userTable:
     def __init__(self, filename: str = None, game_manager = None):
@@ -67,6 +79,12 @@ class userTable:
             return None
         return user[0]
     
+    def getUserMMR(self, discord_id):
+        user = self.getUser(discord_id)
+        if not user:
+            return None
+        return int(user['mmr'])
+    
     def getAllUserIds(self):
         return [user['id'] for user in self.user_list]
     
@@ -81,6 +99,12 @@ class userTable:
         if not user:
             return False
         return True
+
+    def getPointsBalance(self, discord_id):
+        user = self.getUser(discord_id)
+        if not user:
+            return 0
+        return user['points'] - self.game_manager.getTotalBetValue(discord_id)
 
     
     def getUserByCustomId(self, id_type: str, id):
@@ -97,22 +121,23 @@ class userTable:
         user = self.getUser(discord_id)
         if not user:
             return "Bruh, you ain't even registered..."
-        message += f"`--- Showing summary for discord user {discord_id} ---`\n"
-        message += f"Your current name is **{user['name']}**\n"
-        message += f"You joined us on **{user['joined']}**\n"
-        for id_type, ids in user['other_ids'].items():
-            if ids:
-                message += f" - Associated {id_type}s: {ids}\n"
-            else:
-                message += f" - No associated {id_type}s\n"
+        message += f"```Showing summary for discord id {user['id']}```\n"
+        # for id_type, ids in user['other_ids'].items():
+        #     if ids:
+        #         message += f" - Associated {id_type}s: {ids}\n"
+        #     else:
+        #         message += f" - No associated {id_type}s\n"
         
         w = user['stats']['wins'];   l = user['stats']['losses']
         wr = 0 if w+l == 0 else round(100*w/(w+l))
         mmr = user['mmr'] if w+l >= 10 else f"Uncalibrated ({10-w-l} games left)"
+        medal = emojis.medal(ratio=self.getScoreRank(discord_id))
 
-        message += f"Inhouse points:   **{user['points']}**\n"
-        # message += f"Inhouse MMR:      **{mmr}**\n"
-        message += f"Lifetime games:   **{w+l}**\n"
+        message += f"# {medal} {user['name']}\n" 
+        message += f"## {emojis.getEmoji('points')} Points: **{user['points']}**\n\n"
+        message += f">>> Joined on: **{user['joined']}**\n"
+        message += f"Inhouse MMR: **{mmr}**\n"
+        message += f"Lifetime games: **{w+l}**\n"
         message += f"Lifetime winrate: **{wr}%**\n"
         
         return message
@@ -128,6 +153,49 @@ class userTable:
             message += f"{'{0:<20}'.format(user['name'])} | {'{0:>5}'.format(w+l)} | {'{0:>3}'.format(str(wr)+'%')}\n"
         message += "```"
         return message
+
+
+
+    def showScoreboard(self, discord_id = None, full = False):
+        user_list = self.getScoreList()
+        if not user_list:
+            return "No players yet"
+        message = f"# {emojis.getEmoji('dotahouse')} SCOREBOARD {emojis.getEmoji('points')}\n"
+        # message += "──────────────\n"
+        preview = 6
+        length = len(user_list) if full else min(preview, len(user_list))
+        for i in range(length):
+            ratio = self.getScoreRank(user_list[i]['id'], user_list)
+
+            name = user_list[i]['name'].replace('_','\\_') if user_list[i]['id'] != discord_id else '**__'+user_list[i]['name'].replace('_','\\_')+'__**'
+            message += f"{'## '*(ratio == 1.0)}{emojis.medal(ratio=ratio)} {i+1}. {name}: **{user_list[i]['points']}**\n"
+
+        if not full and len(user_list) > preview:
+            message += '`...`\n'
+            i = len(user_list)-1
+            message += f"{emojis.medal(ratio=0)} {i+1}. {user_list[i]['name']}: **{user_list[i]['points']}**\n"
+
+        return message
+
+    def getScoreList(self):
+        user_list = list(self.user_list)
+        user_list.sort(key = lambda u : u['points'], reverse=True)
+        return user_list
+
+    def getScoreRank(self, discord_id, user_list: list = None):
+        if not user_list:
+            user_list = self.getScoreList()
+        if len(user_list) < 2:
+            return 0
+        user = self.getUser(discord_id)
+        if not user:
+            return 0
+        
+        max_p = user_list[0]['points']
+        min_p = user_list[-1]['points']
+        
+        return round((user['points']-min_p)/(max_p-min_p),4)
+    
 
     # Adders, Setters and Removers
     def addUser(self, discord_id, name = None, steam_id=None):

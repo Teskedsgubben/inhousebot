@@ -1,10 +1,11 @@
 import json
 import discord
 import random
+import time
 from users import userTable
 from games import gameManager
 from discord.ext import commands
-
+from emojis import emojis
 
 path = '/home/felix/inhousebot/'
 
@@ -14,7 +15,6 @@ with open(path+"creds.json") as infile:
 with open(path+"config.json") as infile:
     config = json.load(infile)
     channels = config["channels"]
-    emojis = config["emojis"]
 
 
 intent = discord.Intents.all()
@@ -24,9 +24,12 @@ bot = commands.Bot(command_prefix='/', intents=intent)
 users = userTable(path+"users.json")
 games = gameManager(path+"games.json", users=users)
 
-async def verifyCorrectChannel(message_channel, channel=channels["Commands"]):
+async def verifyCorrectChannel(message_channel, channel=channels["Commands"], user=None):
     if message_channel.id != channel:
         await message_channel.send("This command only works in the #commands channel")
+        return False
+    if user and not users.isUser(user):
+        await message_channel.send("Registered users only command. Use /register or see *#instructions* for details.")
         return False
     return True
 
@@ -80,16 +83,18 @@ async def moveToLobby(ctx: commands.Context):
         return
     channel = bot.get_channel(channels["Commands"])
     await channel.send('Moving dogs to Lobby...')
-    members = []
-    for c in [channels["Radiant"],channels["Dire"]]:
-        members.extend(bot.get_channel(c).members)
-    for member in members:
-        await member.move_to(bot.get_channel(channels["Lobby"]))
+    
+    for _ in range(2):
+        for c in [channels["Radiant"],channels["Dire"]]:
+            for member in bot.get_channel(c).members:
+                await member.move_to(bot.get_channel(channels["Lobby"]))
+                time.sleep(1e-3)
+        time.sleep(1e-1)
 
 
 @bot.command(name='updateinstructions')
 async def updateInstructions(ctx: commands.Context):
-    if not await verifyCorrectChannel(ctx.message.channel):
+    if not await verifyCorrectChannel(ctx.message.channel, user=ctx.message.author.id):
         return
     with open(path+'README.md') as readme:
         text_blocks = readme.read().split('\n#')
@@ -99,11 +104,37 @@ async def updateInstructions(ctx: commands.Context):
         await channel.send(text)
     await ctx.message.channel.send("Instructions updated, go check'em out")
 
+
+@bot.command(name='commands')
+async def seeCommands(ctx: commands.Context):
+    if not await verifyCorrectChannel(ctx.message.channel):
+        return
+    await ctx.message.channel.send("See *#instructions* for a list of commands")
+
+@bot.command(name='help')
+async def helpRequest(ctx: commands.Context):
+    await ctx.message.channel.send("See *#instructions* for a full list of commands and details about the world famous Dota House Inhouse League")
+
 # ----- GAME MANAGEMENT FUNCTIONS -----
 @bot.command(name='newgame')
 async def makeMatch(ctx: commands.Context):
-    if not await verifyCorrectChannel(ctx.message.channel):
+    if ctx.message.channel.id not in [channels["Games"], channels["Commands"]]:
+        await ctx.message.channel.send("This command only works in the #commands and #games channels")
         return
+    delete_delay = 12        
+    if ctx.message.channel.id == channels["Games"]:
+        ctx.message.delete(delay=delete_delay)
+
+    if not users.isUser(ctx.message.author.id):
+        error_text = "Only registered users can start games. See *#instructions* for details."
+        if ctx.message.channel.id == channels["Games"]:
+            await ctx.message.channel.send(error_text, delete_after=delete_delay)
+        else:
+            await ctx.message.channel.send(error_text)
+        return
+
+
+
     channel = bot.get_channel(channels["Games"])
     args = ctx.message.content.split(' ')
     if len(args) > 1:
@@ -114,20 +145,63 @@ async def makeMatch(ctx: commands.Context):
             name += "'s game"
     game = games.startNewGame(name)
     if game:
-        await ctx.message.channel.send("Creating new game in #games...")
+        if ctx.message.channel.id != channels["Games"]:
+            await ctx.message.channel.send("Creating new game in #games...")
+        await moveToLobby(ctx)
         game_message = await channel.send(game)
-        games.setMessagePtr(game_message)    
-        await game_message.add_reaction(bot.get_emoji(emojis["Creep_Radiant"]))
-        await game_message.add_reaction(bot.get_emoji(emojis["Creep_Dire"]))
+        games.setMessagePtr(game_message)
+        await game_message.add_reaction(bot.get_emoji(emojis.getEmojiId("creep_radiant")))
+        await game_message.add_reaction(bot.get_emoji(emojis.getEmojiId("creep_dire")))
     else:
-        await ctx.message.channel.send(f"A game is already in progress: {games.getGameNameAndId()}")
+        error_text = f"A game is already in progress: {games.getGameNameAndId()}"
+        if ctx.message.channel.id == channels["Games"]:
+            await ctx.message.channel.send(error_text, delete_after=delete_delay)
+        else:
+            await ctx.message.channel.send(error_text)
 
-# @bot.command(name='bet')
-# async def
+@bot.command(name='bet')
+async def placeBet(ctx: commands.Context):
+    if not await verifyCorrectChannel(ctx.message.channel, user=ctx.message.author.id):
+        return
+    if not games.getGame():
+        await ctx.message.channel.send("No active game found")
+        return
+
+    args = ctx.message.content.split(' ')
+    if len(args) == 1:
+        await ctx.message.channel.send(f"Usage: /bet XXX [team]")
+        return
+    if not args[1].isnumeric():
+        await ctx.message.channel.send(f"Usage: /bet XXX [team]")
+        return
+
+    bet_value = abs(int(args[1]))
+    with users.getPointsBalance(ctx.message.author.id) as balance:
+        if bet_value > balance:
+            await ctx.message.channel.send(f"Bet too big, you ain't that packed. You have {balance} {emojis.getEmoji('points')}")
+            return
+
+    player_team = games.getPlayerTeam(ctx.message.author.id)
+    if len(args) == 2 and not player_team:
+        await ctx.message.channel.send(f"Need to specify team if not joined")
+        return
+    if len(args) >= 3:
+        bet_team = args[2].lower()
+    else:
+        bet_team = player_team.lower()
+
+    if player_team:
+        player_team = player_team.lower()
+        if bet_team != player_team:
+            await ctx.message.channel.send(f"We got a 322, bro tryin'a bet against his team! Bet ignored, you immoral little bogger!")
+            return
+    await ctx.message.channel.send(games.addBet(ctx.message.author.id, bet_value, bet_team))
+    game_message = games.getMessagePtr()
+    await game_message.edit(content=games.showGame())
 
 @bot.command(name='winner')
 async def setWinner(ctx: commands.Context):
-    if not await verifyCorrectChannel(ctx.message.channel):
+    if not await verifyCorrectChannel(ctx.message.channel, user=ctx.message.author.id):
         return
     if not games.getGame():
         await ctx.message.channel.send("No active game found")
@@ -141,21 +215,23 @@ async def setWinner(ctx: commands.Context):
     if winner not in ['radiant', 'dire', 'none']:
         await ctx.message.channel.send(f"Invalid winner. Must be **radiant**, **dire** or **none**")
         return
+    await ctx.message.channel.send(f"Game ended with winner: {winner}")
     game_message = games.getMessagePtr()
     await game_message.edit(content=games.setWinner(winner))
-    await ctx.message.channel.send(f"Game ended with winner: {winner}")
+    await moveToLobby(ctx)
 
 
 @bot.event
 async def on_reaction_add(reaction: discord.Reaction, user: discord.member.Member):
-    if bot.user.id == user.id:
-        return
-    if not await verifyCorrectChannel(reaction.message.channel, channel = channels['Games']):
+    if bot.user.id == user.id or reaction.message.channel.id != channels['Games']:
         return
     if not 'Dire' in str(reaction.emoji) and not 'Radiant' in str(reaction.emoji):
         return
+    if not users.isUser(user.id):
+        await reaction.remove(user)
+        return
     current_game = games.getCurrentGameMessageId()
-    if current_game == reaction.message.id:
+    if current_game and current_game == reaction.message.id:
         team = 'Dire' if 'Dire' in str(reaction.emoji) else 'Radiant'
         if not games.addToTeam(user.id, team):
             await reaction.remove(user)
@@ -169,10 +245,10 @@ async def on_reaction_add(reaction: discord.Reaction, user: discord.member.Membe
 
 @bot.event
 async def on_reaction_remove(reaction: discord.Reaction, user: discord.member.Member):
-    if not await verifyCorrectChannel(reaction.message.channel, channel = channels['Games']):
+    if reaction.message.channel.id != channels['Games']:
         return
     current_game = games.getCurrentGameMessageId()
-    if current_game == reaction.message.id:
+    if current_game and current_game == reaction.message.id:
         team = 'Dire' if 'Dire' in str(reaction.emoji) else 'Radiant'
         games.removeFromTeam(user.id, team)
         game_message = games.getMessagePtr()
@@ -191,7 +267,7 @@ async def registerUser(ctx: commands.Context):
 
 @bot.command(name='mystats')
 async def displayUser(ctx: commands.Context):
-    if not await verifyCorrectChannel(ctx.message.channel):
+    if not await verifyCorrectChannel(ctx.message.channel, user=ctx.message.author.id):
         return
     await ctx.message.channel.send(users.showUser(ctx.message.author.id))
 
@@ -199,13 +275,19 @@ async def displayUser(ctx: commands.Context):
 async def displayUser(ctx: commands.Context):
     if not await verifyCorrectChannel(ctx.message.channel):
         return
-    await ctx.message.channel.send(users.showAllUsers())
+    full = False
+    args = ctx.message.content.split(' ')
+    if len(args) > 1:
+        if args[1] == '-full':
+            full = True
+    await ctx.message.channel.send(users.showScoreboard(discord_id = ctx.message.author.id, full=full))
 
 
 @bot.command(name='setname')
 async def registerUser(ctx: commands.Context):
-    if not await verifyCorrectChannel(ctx.message.channel):
+    if not await verifyCorrectChannel(ctx.message.channel, user=ctx.message.author.id):
         return
+
     if ' ' not in ctx.message.content:
         await ctx.message.channel.send("Usage: `/setname _yourname_`")
         return

@@ -1,18 +1,21 @@
 import json
 import random
 import datetime
+from emojis import emojis
 
-def getRandomEmoji():
-    return random.choice([
-        '<:Invoker:849442548044660777>',
-        '<:Earthshaker:849443338772152360>',
-        '<:Mars:849444978034737242>',
-        '<:Rapier:850828789947564053>',
-        '<:ClockHead:859597036310233121>',
-        '<:PudgeArcana:849636106383130664>',
-        '<:DChook:848629647116730389>',
-        '<:TechiesMine:843852928351338516>'
-    ])
+date_format = "%Y-%m-%d %H:%M"
+
+# def getRandomEmoji():
+#     return random.choice([
+#         '<:Invoker:849442548044660777>',
+#         '<:Earthshaker:849443338772152360>',
+#         '<:Mars:849444978034737242>',
+#         '<:Rapier:850828789947564053>',
+#         '<:ClockHead:859597036310233121>',
+#         '<:PudgeArcana:849636106383130664>',
+#         '<:DChook:848629647116730389>',
+#         '<:TechiesMine:843852928351338516>'
+#     ])
 
 class gameManager:
     def __init__(self, filename: str = None, users = None):
@@ -48,7 +51,7 @@ class gameManager:
             "name": None,
             "created": None,
             "message_id": None,
-            "emoji": getRandomEmoji(),
+            "emoji": emojis.getRandomGameEmoji(),
             "bets": [],
             "teams": {
                 "radiant": [],
@@ -63,16 +66,16 @@ class gameManager:
         if not game:
             return {'radiant': avg_odds, 'dire': avg_odds}
         mmrs = {}
+        fallback_mmr = self.users.getBlankUser()['mmr']
         for team in ['radiant', 'dire']:
             mmr_sum = 0
-            fallback_mmr = self.users.getBlankUser()['mmr']
-            for player in team:
-                user = self.users.getUser(player)
-                if user:
-                    mmr_sum += user['mmr']
+            for player in game['teams'][team]:
+                mmr = self.users.getUserMMR(player)
+                if mmr:
+                    mmr_sum += mmr
                 else:
                     mmr_sum += fallback_mmr
-
+            mmr_sum += (5-len(game['teams'][team]))*fallback_mmr
             mmrs.update({team: mmr_sum})
         odds = {}
         for team in ['radiant', 'dire']:
@@ -94,22 +97,22 @@ class gameManager:
         game = self.getBlankGame()
         game['id'] = self.getNewGameId()
         game['name'] = f"Game_{game['id']}" if not name else name
-        game['created'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+        game['created'] = datetime.datetime.now().strftime(date_format)
         
         self.current_game = game
         return self.showGame()
 
-    def getGame(self, id: int = None):
-        if not id:
+    def getGame(self, game_id: int = None):
+        if not game_id:
             return self.current_game
         else:
-            game = [game for game in self.game_list if game["id"] == id]
+            game = [game for game in self.game_list if game["id"] == game_id]
             if not game:
                 return None
             return game[0]
     
-    def getGameNameAndId(self, id: int = None):
-        game = self.getGame(id)
+    def getGameNameAndId(self, game_id: int = None):
+        game = self.getGame(game_id)
         if not game:
             return "No game found"
         return f"Game **{game['name']}** with id **{game['id']}**"
@@ -130,7 +133,10 @@ class gameManager:
         return game['teams']['radiant'] + game['teams']['dire']
 
     def getCurrentGameMessageId(self):
-        return self.current_game['message_id']
+        game = self.getGame()
+        if not game:
+            return None
+        return game['message_id']
     
     def addToTeam(self, discord_id, team: str):
         if not self.getGame():
@@ -142,6 +148,45 @@ class gameManager:
             return False
         self.current_game['teams'][team].append(discord_id)
         return True
+    
+    def addBet(self, discord_id, bet_value, team):
+        game = self.getGame()
+        if not game:
+            return "No active game"
+        created = datetime.datetime.strptime(game['created'], date_format)
+        now = datetime.datetime.now()
+        minutes_since_creation = (now-created).total_seconds()/60
+        if minutes_since_creation > 15:
+            return "Bets for this game have closed"
+        winnings = round(self.getGameOdds(team)*bet_value)
+        bet = {
+            'user': discord_id,
+            'bet_value': bet_value,
+            'bet_team': team,
+            'winnings': winnings
+        }
+        game['bets'].append(bet)
+        return f"Bet of {bet_value} placed on the {team.capitalize()}. Potential winnings: {winnings}"
+
+    def getTotalBetValue(self, discord_id = None, game_id: int = None):
+        game = self.getGame(game_id)
+        if not game:
+            return 0
+        if not discord_id:
+            return sum([bet['bet_winnings'] for bet in game['bets']])
+        else:
+            return sum([bet['bet_winnings'] for bet in game['bets'] if game['bets'] == discord_id])
+
+
+    def getPlayerTeam(self, discord_id, game_id: int = None):
+        game = self.getGame(game_id)
+        if not game:
+            return None
+        if discord_id in game['teams']['radiant']:
+            return "Radiant"
+        if discord_id in game['teams']['dire']:
+            return "Dire"
+        return None
     
     def removeFromTeam(self, discord_id, team: str):
         if not self.getGame():
@@ -157,7 +202,7 @@ class gameManager:
         game = self.getGame(game_id)
         if not game:
             return f"No game to show"
-        message  = f"# <a:DotaHouse:849006603663048724>   INHOUSE GAME   {game['emoji']}\n```"
+        message  = f"# {emojis.getEmoji('dotahouse')}   INHOUSE GAME   {game['emoji']}\n```"
         message += f" - Game ID: {game['id']}\n"
         message += f" - Name:    {game['name']}\n"
         message += f" - Date:    {game['created']}\n"
@@ -171,15 +216,18 @@ class gameManager:
         dire = list([self.users.getName(player) for player in game['teams']['dire']])
         dire.extend([None]*(5-len(dire)))
         for p in range(5):
-            radiant_player = '{0:<20}'.format(radiant[p]) if radiant[p] else '{0:^20}'.format(empty)
-            dire_player = '{0:>20}'.format(dire[p]) if dire[p] else '{0:^20}'.format(empty)
+            radiant_player = '{0:<20}'.format(radiant[p][:20]) if radiant[p] else '{0:^20}'.format(empty)
+            dire_player = '{0:>20}'.format(dire[p][:20]) if dire[p] else '{0:^20}'.format(empty)
             message += f"║ {radiant_player}║{dire_player} ║\n"
         message += f"╠{'═'*21}╬{'═'*21}╣\n"
         
         odds = self.getGameOdds()
         message += f"║ {'{0:^20}'.format('Odds: '+str(odds['radiant']))}║{'{0:^20}'.format('Odds: '+str(odds['dire']))} ║\n"
         message += f"╚{'═'*21}╩{'═'*21}╝\n"
-        message += "\nWhen ready, click on a creep to join that team!```"
+        message += f"\n{'{0:<20}'.format('Player bets')} {'{0:>8}'.format('Bet')} {'{0:>8}'.format('Pot')}\n"
+        for bet in game['bets']:
+            message += f"{'{0:<20}'.format(self.users.getName(bet['user'])[:20])} {'{0:>8}'.format(bet['bet_value'])} {'{0:>8}'.format(bet['winnings'])}\n"
+        message += "\nWhen ready, click on a creep to join that team!\n(Need to /register for this)```"
         return message
 
     def setMessagePtr(self, message_ptr, game_id: int = None):
@@ -200,16 +248,21 @@ class gameManager:
             return "Can't set winner. No ongoing game."
         self.current_game['winner'] = winning_team.capitalize()
         self.game_list.append(self.current_game)
-        for team, players in self.current_game['teams'].items():
-            for player in players:
-                score = 1 if team == winning_team else -1
-                self.users.addScore(player,score)
-                if team == winning_team:
-                    self.users.addPoints(player,50)
-        
-        self.users.writeToJson()
-        self.writeToJson()
+        if winning_team.lower() != 'none':
+            for team, players in self.current_game['teams'].items():
+                for player in players:
+                    score = 1 if team == winning_team else -1
+                    self.users.addScore(player,score)
+                    if team == winning_team:
+                        self.users.addPoints(player,50)
+            for bet in self.current_game['bets']:
+                if winning_team == bet['bet_team']:
+                    self.users.addPoints(bet['user'],bet['winnings']-bet['bet_value'])
+                else:
+                    self.users.addPoints(bet['user'],-bet['bet_value'])
+            self.users.writeToJson()
 
+        self.writeToJson()
         victory_text = self.showGame()
         self.current_game = None
         self.current_message_ptr = None

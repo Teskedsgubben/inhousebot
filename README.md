@@ -1,6 +1,6 @@
 # InhouseBot Instructions
 
-*Welcome to the InhouseBot Dota League*
+*Welcome to the Dota House Inhouse League*
 
 Join us by typing `/register` in the commands channel! Playing games using the bot allows you to keep track of your stats, earn points, bet on games and more!
 
@@ -27,7 +27,7 @@ All players in the match have their Inhouse MMR updated after the game. Each pla
 
 ### Points system
 
-The InhouseBot Points League is the third most prestigious league in the world according to the New York Times\*. When registering to the league, the new player recieves 100 points to start. Each game victory grants an additional 50 points. 
+The Dota House Inhouse League is the third most prestigious league in the world according to the New York Times\*. While you do have an MMR, the real skill, that also determines your medal, revolves around *Points*. When registering to the league, the new player recieves 100 points to start. Each game victory grants an additional 50 points. 
 
 However, the action starts when you get into the betting game! When a new game is created, it is open for bets during the initial betting period. When you enter a game, you can bet on your own team with points from your points pool. If your team wins, you get your earned winnings based on your bet multiplied by that team's odds at the time your bet was placed. As a spectator, you can bet on any team!
 
@@ -42,15 +42,19 @@ Other than that, it works very similarly. Upon registration you get assigned a d
 This MMR value is used when computing the odds of the game. This inderectly implies that the odds are not based on skill, but only relative performance. It's up to you to identify the opportunities where it's completely wrong and place a massive bet, pushing you to the top of the scoreboard!
 
 ### List of commands
+
+*General commands*
+
 - **/test**: See if the bot is even alive
 - **/roll**: Roll a number between 0-100
 - **/rollall**: Roll a number between 0-100 for all players in the *Lobby* voice channel
-- **/lobby**: Moves everyone in the *Radiant* and *Dire* voice channels to *Lobby*
-- **/updateinstructions**: Updates this page to reflect the latest version of the README.md file in the repository
+
+*Inhouse commands*
+
+- **/register**: Register your account as a user to start tracking stats
+- **/setname**: Change your display name in the Inhouse League
 - **/newgame**: Starts a new game in the #games channel
 - **/winner**: Registers a winner to the current game and shuts it down
-- **/register**: Register your account as a user to start tracking stats
 - **/mystats**: Show your personal stats
 - **/scoreboard**: Show the summarized scoreboard for all players
-- **/setname**: Change your display name in the Inhouse League
-- **/addid**: Adds an id associated with your account, not used atm
+- **/lobby**: Moves everyone in the *Radiant* and *Dire* voice channels to *Lobby*
