@@ -8,16 +8,17 @@ Join us by typing `/register` in the commands channel! Playing games using the b
 
 ### Quickstart
 
+- Type all commands in *#commands*
 - Start a new game with `/newgame gamename`
-- Join teams by reacting to the creeps
-- **In progress, released soon:** Place bets with `/bet XXX team`
-- Set winning team with `/winner team`
+- Join teams by reacting to the creeps in *#games*
+- Place bets with `/bet XXX` or `/bet XXX team`
+- After the game, set winning team with `/winner team`
 
 ### Playing a game
 
 Typing `/newgame` in the *#commands* channel creates a new game in the *#games* channel. You can add a name to the game like `/newgame gamename` when creating it. 
 
-The bot now posts the game in the *#games* channel as a professionally styled message. The bot adds reactions with a Radiant <:Creep_Radiant:1207041014481682502> and Dire <:Creep_Dire:1207041042780790784> creep automatically. Players can join the respective team by clicking that creep, which will automatically move them into the *:loud_sound:Radiant* or *:loud_sound:Dire* voice channel. 
+The bot now posts the game in the *#games* channel as a professionally styled message. The bot adds reactions with a Radiant <:Creep_Radiant:1207041014481682502> and Dire <:Creep_Dire:1207041042780790784> creep automatically. Players can join the respective team by clicking that creep, which will automatically move them into the *:loud_sound: Radiant* or *:loud_sound: Dire* voice channel. 
 
 For a limited time after creating the game, players can place their bets. Players that have joined the game can do so like `/bet 100` to place a bet of 100 on their own team. Players not in the game can bet on any team like `/bet 100 radiant`. Note that joining the other team after placing that bet will discard it, no 322 here. Leaving the team will activate it again though.
 
@@ -43,18 +44,18 @@ This MMR value is used when computing the odds of the game. This inderectly impl
 
 ### List of commands
 
-*General commands*
+*Game related commands*
+
+- **/register**: Register your account as a user to start tracking stats
+- **/setname**: Change your display name in the DH Inhouse League
+- **/newgame**: Starts a new game in the *#games* channel
+- **/winner**: Registers a winner to the current game and shuts it down
+- **/mystats**: Show your personal stats
+- **/scoreboard**: Show the summarized scoreboard for all players
+
+*Other commands*
 
 - **/test**: See if the bot is even alive
 - **/roll**: Roll a number between 0-100
 - **/rollall**: Roll a number between 0-100 for all players in the *Lobby* voice channel
-
-*Inhouse commands*
-
-- **/register**: Register your account as a user to start tracking stats
-- **/setname**: Change your display name in the Inhouse League
-- **/newgame**: Starts a new game in the #games channel
-- **/winner**: Registers a winner to the current game and shuts it down
-- **/mystats**: Show your personal stats
-- **/scoreboard**: Show the summarized scoreboard for all players
 - **/lobby**: Moves everyone in the *Radiant* and *Dire* voice channels to *Lobby*
