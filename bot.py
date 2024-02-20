@@ -111,9 +111,6 @@ async def seeCommands(ctx: commands.Context):
         return
     await ctx.message.channel.send("See *#instructions* for a list of commands")
 
-@bot.command(name='help')
-async def helpRequest(ctx: commands.Context):
-    await ctx.message.channel.send("See *#instructions* for a full list of commands and details about the world famous Dota House Inhouse League")
 
 # ----- GAME MANAGEMENT FUNCTIONS -----
 @bot.command(name='newgame')
@@ -176,10 +173,10 @@ async def placeBet(ctx: commands.Context):
         return
 
     bet_value = abs(int(args[1]))
-    with users.getPointsBalance(ctx.message.author.id) as balance:
-        if bet_value > balance:
-            await ctx.message.channel.send(f"Bet too big, you ain't that packed. You have {balance} {emojis.getEmoji('points')}")
-            return
+    balance = users.getPointsBalance(ctx.message.author.id)
+    if bet_value > balance:
+        await ctx.message.channel.send(f"Bet too big, you ain't that packed. You have {balance} {emojis.getEmoji('points')}")
+        return
 
     player_team = games.getPlayerTeam(ctx.message.author.id)
     if len(args) == 2 and not player_team:
@@ -272,7 +269,7 @@ async def displayUser(ctx: commands.Context):
     await ctx.message.channel.send(users.showUser(ctx.message.author.id))
 
 @bot.command(name='scoreboard')
-async def displayUser(ctx: commands.Context):
+async def displayScoreboard(ctx: commands.Context):
     if not await verifyCorrectChannel(ctx.message.channel):
         return
     full = False
@@ -281,6 +278,10 @@ async def displayUser(ctx: commands.Context):
         if args[1] == '-full':
             full = True
     await ctx.message.channel.send(users.showScoreboard(discord_id = ctx.message.author.id, full=full))
+
+@bot.command(name='leaderboard')
+async def displayLeaderboard(ctx: commands.Context):
+    await displayScoreboard(ctx)
 
 
 @bot.command(name='setname')
@@ -320,6 +321,44 @@ async def purgeChannel(ctx: commands.Context):
         return
     await ctx.message.channel.purge()
 
+@bot.command(name='retroadd')
+async def retroAddUser(ctx: commands.Context):
+    if not await verifyCorrectChannel(ctx.message.channel):
+        return
+    if ctx.message.author.id not in config['admins'].values():
+        await ctx.message.channel.send("retroadd is currently admin only")
+        return
+    args = ctx.message.content.split(' ')
+    user_flag = '-user'
+    team_flag = '-team'
+    game_flag = '-game'
+
+    if (user_flag not in args) or (team_flag not in args) or (game_flag not in args):
+        await ctx.message.channel.send(f"This commands need flags for: *{user_flag}*, *{team_flag}* and *{game_flag}*")
+        return
+    if args[-1] == user_flag or args[-1] == team_flag or args[-1] == game_flag:
+        await ctx.message.channel.send(f"retroadd incorrectly parsed, cannot end with flag")
+        return
+    user_id = args[args.index(user_flag)+1]
+    team_id = args[args.index(team_flag)+1].lower()
+    game_id = args[args.index(game_flag)+1]
+    if not users.isUser(user_id):
+        await ctx.message.channel.send(f"Invalid player")
+        return
+    if team_id not in ['radiant','dire']:
+        await ctx.message.channel.send(f"Invalid team")
+        return
+    if not games.getGame(game_id):
+        await ctx.message.channel.send(f"Invalid game")
+        return
+
+    game_message_id = games.getCurrentGameMessageId(game_id)
+
+    if not games.addToTeam(user_id, team_id, game_id=game_id):
+        await ctx.message.channel.send(f"Failed to add user retroactively, player already in game or team full?")
+        return
+    game_message = bot.get_channel(channels['Games']).fetch_message(game_message_id)
+    await game_message.edit(content=games.showGame(game_id))
 
 
 
