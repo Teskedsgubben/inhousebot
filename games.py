@@ -28,6 +28,11 @@ class gameManager:
             self.loadFromJson()
         else:
             self.game_list = []
+        try:
+            from indicator import indicator
+            self.indicator = indicator(red_pin=21, green_pin=26)
+        except:
+            self.indicator = None
     
     def loadFromJson(self):
         try:
@@ -100,6 +105,8 @@ class gameManager:
         game['created'] = datetime.datetime.now().strftime(date_format)
         
         self.current_game = game
+        if self.indicator:
+            self.indicator.setReady()
         return self.showGame()
 
     def getGame(self, game_id: int = None):
@@ -132,21 +139,28 @@ class gameManager:
             return []
         return game['teams']['radiant'] + game['teams']['dire']
 
-    def getCurrentGameMessageId(self):
-        game = self.getGame()
+    def getCurrentGameMessageId(self, game_id: int = None):
+        game = self.getGame(game_id)
         if not game:
             return None
         return game['message_id']
     
-    def addToTeam(self, discord_id, team: str):
-        if not self.getGame():
+    def addToTeam(self, discord_id, team: str, game_id: int = None):
+        game = self.getGame(game_id = game_id)
+        if not game:
             return False
         team = team.lower()
-        if discord_id in self.current_game['teams']['radiant']+self.current_game['teams']['dire']:
+        players = game['teams']['radiant']+game['teams']['dire']
+        if discord_id in players:
             return False
-        if len(self.current_game['teams'][team]) >= 5:
+        if len(game['teams'][team]) >= 5:
             return False
-        self.current_game['teams'][team].append(discord_id)
+        game['teams'][team].append(discord_id)
+        if game_id:
+            self.writeToJson()
+        if self.indicator and len(players) >= 9:
+            self.indicator.setBusy()
+        
         return True
     
     def addBet(self, discord_id, bet_value, team):
@@ -195,6 +209,9 @@ class gameManager:
         if discord_id not in self.current_game['teams'][team]:
             return False
         self.current_game['teams'][team].remove(discord_id)
+        
+        if self.indicator:
+            self.indicator.setReady()
         return True
 
     # ╚ ╔ ╝ ╗ ║ ═ ╠ ╣ ╩ ╦ ╬ 
@@ -228,6 +245,8 @@ class gameManager:
         for bet in game['bets']:
             message += f"{'{0:<20}'.format(self.users.getName(bet['user'])[:20])} {'{0:>8}'.format(bet['bet_value'])} {'{0:>8}'.format(bet['winnings'])}\n"
         message += "\nWhen ready, click on a creep to join that team!\n(Need to /register for this)```"
+        if game['winner'].lower() == 'radiant' or game['winner'].lower() == 'dire':
+            message += '\n## Winner ' + emojis.getEmoji(f"creep_{game['winner'].lower()}")
         return message
 
     def setMessagePtr(self, message_ptr, game_id: int = None):
@@ -266,4 +285,6 @@ class gameManager:
         victory_text = self.showGame()
         self.current_game = None
         self.current_message_ptr = None
+        if self.indicator:
+            self.indicator.setOff()
         return victory_text
