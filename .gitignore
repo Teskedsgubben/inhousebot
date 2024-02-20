@@ -1,9 +1,5 @@
-bin
 creds.json
-include
-lib
-lib64
-pyvenv.cfg
 *.log
 __pycache__
 *test*
+botvenv
