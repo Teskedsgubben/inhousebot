@@ -268,6 +268,26 @@ async def displayUser(ctx: commands.Context):
         return
     await ctx.message.channel.send(users.showUser(ctx.message.author.id))
 
+@bot.command(name='stats')
+async def displayStats(ctx: commands.Context):
+    if not await verifyCorrectChannel(ctx.message.channel, user=ctx.message.author.id):
+        return
+    args = ctx.message.content.split(' ')
+    allowed_args = ['-full', '-me', '-vs']
+    if len(args) == 1 or args[1] not in allowed_args:
+        await ctx.message.channel.send(f"Need to specify flags from: {allowed_args}")
+        return
+    if args[1] == '-me':
+        await displayUser(ctx)
+        return
+    if args[1] == '-vs':
+        await ctx.message.channel.send(f"Not launched yet. This will allow you to see your stats with and against othe players.")
+        return
+    if args[1] == '-full':
+        await ctx.message.channel.send(users.showAllUsers())
+        return
+
+
 @bot.command(name='scoreboard')
 async def displayScoreboard(ctx: commands.Context):
     if not await verifyCorrectChannel(ctx.message.channel):
