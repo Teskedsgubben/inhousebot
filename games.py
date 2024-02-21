@@ -243,7 +243,7 @@ class gameManager:
         message += f"╚{'═'*21}╩{'═'*21}╝\n"
         message += f"\n{'{0:<20}'.format('Player bets')}{'{0:>8}'.format('Bet')} {'{0:>8}'.format('Team')} {'{0:>8}'.format('Pot')}\n"
         for bet in game['bets']:
-            message += f"{'{0:<20}'.format(self.users.getName(bet['user'])[:20])}{'{0:>8}'.format(bet['bet_value'])} {'{0:>8}'.format(bet['bet_team'])} {'{0:>8}'.format(bet['winnings'])}\n"
+            message += f"{'{0:<20}'.format(self.users.getName(bet['user'])[:20])}{'{0:>8}'.format(bet['bet_value'])} {'{0:>8}'.format(bet['bet_team'].capitalize())} {'{0:>7}'.format(bet['winnings'])}\n"
         message += "\nWhen ready, click on a creep to join that team!\n(Need to /register for this)```"
         if game['winner']:
             message += '\n## Winner ' + emojis.getEmoji(f"creep_{game['winner'].lower()}")
