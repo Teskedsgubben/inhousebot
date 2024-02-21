@@ -85,7 +85,7 @@ class gameManager:
         odds = {}
         tot_mmrs = mmrs['radiant'] + mmrs['dire']
         for team in ['radiant', 'dire']:
-            team_odds = round(avg_odds * 2 * ((tot_mmrs - mmrs[team]) / tot_mmrs)**3,2)
+            team_odds = round(avg_odds * (2*(tot_mmrs - mmrs[team]) / tot_mmrs)**3,2)
             odds.update({team: team_odds})
         if not requested_team:
             return odds
