@@ -141,17 +141,21 @@ class userTable:
         message += f"Lifetime winrate: **{wr}%**\n"
         
         return message
-
+    
+    # └ ┌ ┘ ┐ │ ─ ├ ┤ ┴ ┬ ┼
+    # ╚ ╔ ╝ ╗ ║ ═ ╠ ╣ ╩ ╦ ╬ 
     def showAllUsers(self):
-        message = f"```{'{0:<20}'.format('Name')} | {'{0:>6}'.format('Points')} | {'{0:>5}'.format('Games')} | {'{0:>3}'.format('WR')} | {'{0:>5}'.format('MMR')} \n"
+        message = f"```┌{20*'─'}─┬─{6*'─'}─┬─{5*'─'}─┬─{4*'─'}─┬─{5*'─'}┐\n"
+        message += f"│{'{0:<20}'.format('Name')} │ {'{0:>6}'.format('Points')} │ {'{0:>5}'.format('Games')} │ {'{0:>4}'.format('WR')} │ {'{0:>5}'.format('MMR')}│\n"
+        message += f"├{20*'─'}─┼─{6*'─'}─┼─{5*'─'}─┼─{4*'─'}─┼─{5*'─'}┤\n"
         user_list = list(self.user_list)
         user_list.sort(key = lambda u : u['name'])
         for user in user_list:
             w = user['stats']['wins']
             l = user['stats']['losses']
             wr = 0 if w+l == 0 else round(100*w/(w+l))
-            message += f"{'{0:<20}'.format(user['name'])} | {'{0:>6}'.format(user['points'])} | {'{0:>5}'.format(w+l)} | {'{0:>3}'.format(str(wr)+'%')} | {'{0:>5}'.format(user['name'] if w+l>= 10 else '-')} \n"
-        message += "```"
+            message += f"│{'{0:<20}'.format(user['name'][:20])} │ {'{0:>6}'.format(user['points'])} │ {'{0:>5}'.format(w+l)} │ {'{0:>4}'.format(str(wr)+'%')} │ {'{0:>5}'.format(user['mmr'] if w+l>= 10 else '-')}│\n"
+        message += f"└{20*'─'}─┴─{6*'─'}─┴─{5*'─'}─┴─{4*'─'}─┴─{5*'─'}┘```"
         return message
 
 
