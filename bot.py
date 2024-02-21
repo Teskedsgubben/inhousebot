@@ -168,12 +168,13 @@ async def placeBet(ctx: commands.Context):
     if len(args) == 1:
         await ctx.message.channel.send(f"Usage: /bet XXX [team]")
         return
-    if not args[1].isnumeric():
+    all_in = 'all'
+    if not args[1].isnumeric() or args[1] != all_in:
         await ctx.message.channel.send(f"Usage: /bet XXX [team]")
         return
 
-    bet_value = abs(int(args[1]))
     balance = users.getPointsBalance(ctx.message.author.id)
+    bet_value = balance if args[1] != all_in else abs(int(args[1])) 
     if bet_value > balance:
         await ctx.message.channel.send(f"Bet too big, you ain't that packed. You have {balance} {emojis.getEmoji('points')}")
         return
