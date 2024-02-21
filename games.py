@@ -241,7 +241,7 @@ class gameManager:
         odds = self.getGameOdds()
         message += f"║ {'{0:^20}'.format('Odds: '+str(odds['radiant']))}║{'{0:^20}'.format('Odds: '+str(odds['dire']))} ║\n"
         message += f"╚{'═'*21}╩{'═'*21}╝\n"
-        message += f"\n{'{0:<20}'.format('Player bets')}{'{0:>8}'.format('Bet')} {'{0:>8}'.format('Team')} {'{0:>8}'.format('Pot')}\n"
+        message += f"\n{'{0:<20}'.format('Player bets')}{'{0:>8}'.format('Bet')} {'{0:>8}'.format('Team')} {'{0:>7}'.format('Pot')}\n"
         for bet in game['bets']:
             message += f"{'{0:<20}'.format(self.users.getName(bet['user'])[:20])}{'{0:>8}'.format(bet['bet_value'])} {'{0:>8}'.format(bet['bet_team'].capitalize())} {'{0:>7}'.format(bet['winnings'])}\n"
         message += "\nWhen ready, click on a creep to join that team!\n(Need to /register for this)```"
