@@ -280,6 +280,8 @@ class gameManager:
                     self.users.addPoints(bet['user'],bet['winnings']-bet['bet_value'])
                 else:
                     self.users.addPoints(bet['user'],-bet['bet_value'])
+                if self.users.getPointsBalance(bet['user']) < 10:
+                    self.users.addPoints(bet['user'],10 - self.users.getPointsBalance(bet['user']))
             self.users.writeToJson()
 
         self.writeToJson()
