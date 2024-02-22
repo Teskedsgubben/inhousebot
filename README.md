@@ -47,7 +47,6 @@ This MMR value is used when computing the odds of the game. This inderectly impl
 ### List of commands
 
 *DHIL Commands*
-
 - **/register**: Register your account as a user to start tracking stats
 - **/setname**: Change your display name in the DH Inhouse League
 - **/newgame**: Starts a new game in the *#games* channel
@@ -58,7 +57,6 @@ This MMR value is used when computing the odds of the game. This inderectly impl
 - **/scoreboard**: Show the summarized scoreboard for all players
 
 *Other Commands*
-
 - **/test**: See if the bot is even alive
 - **/roll**: Roll a number between 0-100
 - **/rollall**: Roll a number between 0-100 for all players in the *Lobby* voice channel
