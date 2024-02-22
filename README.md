@@ -1,6 +1,6 @@
 # InhouseBot Instructions
 
-*Welcome to the Dota House Inhouse League*
+*Welcome to DHIL - The Dota House Inhouse League*
 
 Join us by typing `/register` in the commands channel! Playing games using the bot allows you to keep track of your stats, earn points, bet on games and more!
 
@@ -32,6 +32,8 @@ The Dota House Inhouse League is the third most prestigious league in the world 
 
 However, the action starts when you get into the betting game! When a new game is created, it is open for bets during the initial betting period. When you enter a game, you can bet on your own team with points from your points pool. If your team wins, you get your earned winnings based on your bet multiplied by that team's odds at the time your bet was placed. As a spectator, you can bet on any team!
 
+And don't worry, your points never fall below 10, so you always have something to gamble with.
+
 *\* This is not entirely true*
 
 ### MMR system
@@ -44,16 +46,18 @@ This MMR value is used when computing the odds of the game. This inderectly impl
 
 ### List of commands
 
-*Game related commands*
+*DHIL Commands*
 
 - **/register**: Register your account as a user to start tracking stats
 - **/setname**: Change your display name in the DH Inhouse League
 - **/newgame**: Starts a new game in the *#games* channel
+- **/bet**: Bet your points on a team, use "all" to go all in
 - **/winner**: Registers a winner to the current game and shuts it down
-- **/mystats**: Show your personal stats
+- **/stats**: Shows statistics based on passed flags
+- **/mystats**: Your stats, shorthand for /stats -me
 - **/scoreboard**: Show the summarized scoreboard for all players
 
-*Other commands*
+*Other Commands*
 
 - **/test**: See if the bot is even alive
 - **/roll**: Roll a number between 0-100
