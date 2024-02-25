@@ -2,6 +2,7 @@ import json
 import discord
 import random
 import time
+import math
 from users import userTable
 from games import gameManager
 from discord.ext import commands
@@ -169,12 +170,12 @@ async def placeBet(ctx: commands.Context):
         await ctx.message.channel.send(f"Usage: /bet XXX [team]")
         return
     all_in = 'all'
-    if not args[1].isnumeric() or args[1] != all_in:
+    if not args[1].isnumeric() and args[1] != all_in:
         await ctx.message.channel.send(f"Usage: /bet XXX [team]")
         return
 
     balance = users.getPointsBalance(ctx.message.author.id)
-    bet_value = balance if args[1] != all_in else abs(int(args[1])) 
+    bet_value = balance if args[1] == all_in else abs(int(args[1])) 
     if bet_value > balance:
         await ctx.message.channel.send(f"Bet too big, you ain't that packed. You have {balance} {emojis.getEmoji('points')}")
         return
@@ -285,6 +286,9 @@ async def displayStats(ctx: commands.Context):
         await ctx.message.channel.send(f"Not launched yet. This will allow you to see your stats with and against othe players.")
         return
     if args[1] == '-full':
+        message_list = users.showAllUsers().split('\n')
+        rows = math.floor(2000/(len(message_list[0])+1))
+        # for m in range()
         await ctx.message.channel.send(users.showAllUsers())
         return
 
