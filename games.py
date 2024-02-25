@@ -267,6 +267,7 @@ class gameManager:
         if not self.current_game:
             return "Can't set winner. No ongoing game."
         self.current_game['winner'] = winning_team.capitalize()
+        victory_text = self.showGame()
         self.game_list.append(self.current_game)
         if winning_team.lower() != 'none':
             for team, players in self.current_game['teams'].items():
@@ -285,7 +286,6 @@ class gameManager:
             self.users.writeToJson()
 
         self.writeToJson()
-        victory_text = self.showGame()
         self.current_game = None
         self.current_message_ptr = None
         if self.indicator:
