@@ -268,29 +268,20 @@ async def registerUser(ctx: commands.Context):
 async def displayUser(ctx: commands.Context):
     if not await verifyCorrectChannel(ctx.message.channel, user=ctx.message.author.id):
         return
-    await ctx.message.channel.send(users.showUser(ctx.message.author.id))
+    await ctx.message.channel.send(games.showUserStats(ctx.message.author.id, ['-me']))
+
+def limitSplit(message):
+    return [message[:2000]]
 
 @bot.command(name='stats')
 async def displayStats(ctx: commands.Context):
     if not await verifyCorrectChannel(ctx.message.channel, user=ctx.message.author.id):
         return
-    args = ctx.message.content.split(' ')
-    allowed_args = ['-full', '-me', '-vs']
-    if len(args) == 1 or args[1] not in allowed_args:
-        await ctx.message.channel.send(f"Need to specify flags from: {allowed_args}")
-        return
-    if args[1] == '-me':
-        await displayUser(ctx)
-        return
-    if args[1] == '-vs':
-        await ctx.message.channel.send(f"Not launched yet. This will allow you to see your stats with and against othe players.")
-        return
-    if args[1] == '-full':
-        message_list = users.showAllUsers().split('\n')
-        rows = math.floor(2000/(len(message_list[0])+1))
-        # for m in range()
-        await ctx.message.channel.send(users.showAllUsers())
-        return
+    args = ctx.message.content.split(' ')[1:]
+    message = games.showUserStats(ctx.message.author.id, args)
+    for submessage in limitSplit(message):
+        await ctx.message.channel.send(submessage)
+    return
 
 
 @bot.command(name='scoreboard')

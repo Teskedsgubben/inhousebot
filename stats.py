@@ -1,12 +1,22 @@
-import json
-from users import userTable
 
-users = userTable('users.json')
-fp = open('games.json')
-games = json.load(fp)
-fp.close()
+def pvpStats(games, users, discord_id, args: list = None):
+    message = "```"
+    for user in allstats(games, users, discord_id):
+        if(user['stats']['totalGames'] == 0):
+            continue
+        message_user = f"{user['name']}: "
+        message_games = f"Total games: {user['stats']['totalGames']}"
+        message_ally = f"As ally: {user['stats']['winAlly']}/{user['stats']['lossAlly']}/{round(user['stats']['winRateAlly']*100)}% "
+        message_enemy = f"As enemy: {user['stats']['winEnemy']}/{user['stats']['lossEnemy']}/{round(user['stats']['winRateEnemy']*100)}% \n"
 
-def stats(user1,user2):
+        message += f"{'{0:<20}'.format(message_user[0:20])} "
+        message += f"{'{0:<20}'.format(message_games)}"
+        message += f"{'{0:<20}'.format(message_ally)}"
+        message += f"{message_enemy}"
+    return message+'```'
+
+
+def stats(games, user1, user2):
     playerstats = {
         'totalGames': 0,
         'winAlly': 0,
@@ -16,7 +26,7 @@ def stats(user1,user2):
         'lossEnemy': 0,
         'winRateEnemy':0,
     }
-    for game in games:
+    for game in games.getAllGames():
         radiant = game['teams']['radiant']
         dire = game['teams']['dire']
         players = radiant + dire
@@ -41,33 +51,18 @@ def stats(user1,user2):
 
 #for user2 in users.getAllUserIds():
 #    print(user2)
-def allstats(user1):
+def allstats(games, users, user1):
     lista = []
     for user2 in users.getAllUserIds():
         if user2 != user1:
             lista.append({
-                'stats': stats(user1,user2),
+                'stats': stats(games, user1,user2),
                 'name': users.getName(user2)
             })
     
-    lista2 = [stats(user1,user2) for user2 in users.getAllUserIds() if user2 != user1]
+    lista2 = [stats(games, user1, user2) for user2 in users.getAllUserIds() if user2 != user1]
 
     lista.sort(key= lambda x: x['stats']['totalGames'],reverse=True)
     return lista
-rubululu = 541565507476652032
 
-message = ""
-for user in allstats(rubululu):
-    if(user['stats']['totalGames'] == 0):
-        continue
-    message_user = f"{user['name']}: "
-    message_games = f"Total games: {user['stats']['totalGames']}"
-    message_ally = f"As ally: {user['stats']['winAlly']}/{user['stats']['lossAlly']}/{round(user['stats']['winRateAlly']*100)}% "
-    message_enemy = f"As enemy: {user['stats']['winEnemy']}/{user['stats']['lossEnemy']}/{round(user['stats']['winRateEnemy']*100)}% \n"
-
-    message += f"{'{0:<20}'.format(message_user[0:20])} "
-    message += f"{'{0:<20}'.format(message_games)}"
-    message += f"{'{0:<20}'.format(message_ally)}"
-    message += f"{message_enemy}"
-print(message)
 

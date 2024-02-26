@@ -1,6 +1,7 @@
 import json
 import random
 import datetime
+import stats
 from emojis import emojis
 
 date_format = "%Y-%m-%d %H:%M"
@@ -118,6 +119,9 @@ class gameManager:
             if not game:
                 return None
             return game[0]
+        
+    def getAllGames(self):
+        return self.game_list
     
     def getGameNameAndId(self, game_id: int = None):
         game = self.getGame(game_id)
@@ -249,6 +253,19 @@ class gameManager:
         if game['winner']:
             message += '\n## Winner ' + emojis.getEmoji(f"creep_{game['winner'].lower()}")
         return message
+
+    def showUserStats(self, discord_id, args:list = None):
+        allowed_args = ['-full', '-me', '-vs']
+        if len(args) == 0 or args[0] not in allowed_args:
+            return f"Need to specify flags from: {allowed_args}"
+        if args[0] == '-me':
+            return self.users.showUser(discord_id)
+        if args[0] == '-vs':
+            return stats.pvpStats(self, self.users, discord_id, args)
+        if args[0] == '-full':
+            return self.users.showAllUsers()
+        return
+    
 
     def setMessagePtr(self, message_ptr, game_id: int = None):
         game = self.getGame(game_id)
