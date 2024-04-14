@@ -86,7 +86,7 @@ class gameManager:
         odds = {}
         tot_mmrs = mmrs['radiant'] + mmrs['dire']
         for team in ['radiant', 'dire']:
-            team_odds = round(avg_odds * (2*(tot_mmrs - mmrs[team]) / tot_mmrs)**3,2)
+            team_odds = round(avg_odds * (2*(tot_mmrs - mmrs[team]) / tot_mmrs)**2,2)
             odds.update({team: team_odds})
         if not requested_team:
             return odds
@@ -168,7 +168,7 @@ class gameManager:
         
         return True
     
-    def addBet(self, discord_id, bet_value, team):
+    def addBet(self, discord_id, bet_value, team: str):
         game = self.getGame()
         if not game:
             return "No active game"
@@ -177,6 +177,9 @@ class gameManager:
         minutes_since_creation = (now-created).total_seconds()/60
         if minutes_since_creation > 15:
             return "Bets for this game have closed"
+        if team.lower() not in [t.lower() for t in self.getBlankGame()['teams'].keys()]:
+            return f"{team} is not a valid team?"
+        all_in = 0.17*(self.users.getPointsBalance(discord_id) == bet_value)
         winnings = round(self.getGameOdds(team)*bet_value)
         bet = {
             'user': discord_id,
@@ -185,7 +188,7 @@ class gameManager:
             'winnings': winnings
         }
         game['bets'].append(bet)
-        return f"Bet of {bet_value} placed on the {team.capitalize()}. Potential winnings: {winnings}"
+        return f"{bool(all_in)*'ALL IN BET! '}Bet of {bet_value} placed on the {team.capitalize()}. Potential winnings: {winnings}"
 
     def getTotalBetValue(self, discord_id = None, game_id: int = None):
         game = self.getGame(game_id)
@@ -249,8 +252,8 @@ class gameManager:
         message += f"\n{'{0:<20}'.format('Player bets')}{'{0:>8}'.format('Bet')} {'{0:>8}'.format('Team')} {'{0:>7}'.format('Pot')}\n"
         for bet in game['bets']:
             message += f"{'{0:<20}'.format(self.users.getName(bet['user'])[:20])}{'{0:>8}'.format(bet['bet_value'])} {'{0:>8}'.format(bet['bet_team'].capitalize())} {'{0:>7}'.format(bet['winnings'])}\n"
-        message += "\nWhen ready, click on a creep to join that team!\n(Need to /register for this)```"
-        if game['winner']:
+        message += "\nWhen ready, click on a creep to join that team!```"
+        if game['winner'] and game['winner'].lower() != 'none':
             message += '\n## Winner ' + emojis.getEmoji(f"creep_{game['winner'].lower()}")
         return message
 
@@ -283,6 +286,8 @@ class gameManager:
     def setWinner(self, winning_team: str):
         if not self.current_game:
             return "Can't set winner. No ongoing game."
+        if winning_team.lower() not in ['radiant','dire','none']:
+            return f"{winning_team} isn't a valid winner ffs, use either Radiant, Dire or None"
         self.current_game['winner'] = winning_team.capitalize()
         victory_text = self.showGame()
         self.game_list.append(self.current_game)
