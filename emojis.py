@@ -22,6 +22,7 @@ class emojiLib:
             },
             'items': {
                 'rapier': '<:Rapier:850828789947564053>',
+                'observer': '<:Observer:1228867437017960540>'
             },
             'heros': {
                 'invoker': '<:Invoker:849442548044660777>',
