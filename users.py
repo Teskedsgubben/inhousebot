@@ -146,7 +146,7 @@ class userTable:
     # ╚ ╔ ╝ ╗ ║ ═ ╠ ╣ ╩ ╦ ╬ 
     def showAllUsers(self):
         message = f"```┌{20*'─'}─┬─{6*'─'}─┬─{5*'─'}─┬─{4*'─'}─┬─{5*'─'}┐\n"
-        message += f"│{'{0:<20}'.format('Name')} │ {'{0:>6}'.format('Points')} │ {'{0:>5}'.format('Games')} │ {'{0:>4}'.format('WR')} │ {'{0:>5}'.format('MMR')}│\n"
+        message += f"│{'{0:<20}'.format('Name')} │ {'{0:^6}'.format('Points')} │ {'{0:^5}'.format('Games')} │ {'{0:^4}'.format('WR')} │ {'{0:^5}'.format('MMR')}│\n"
         message += f"├{20*'─'}─┼─{6*'─'}─┼─{5*'─'}─┼─{4*'─'}─┼─{5*'─'}┤\n"
         user_list = list(self.user_list)
         user_list.sort(key = lambda u : u['name'])
