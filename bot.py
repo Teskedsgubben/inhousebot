@@ -1,7 +1,7 @@
 import json
 import discord
 import random
-import time
+import asyncio
 import math
 from users import userTable
 from games import gameManager
@@ -85,12 +85,13 @@ async def moveToLobby(ctx: commands.Context):
     channel = bot.get_channel(channels["Commands"])
     await channel.send('Moving dogs to Lobby...')
     
-    for _ in range(2):
-        for c in [channels["Radiant"],channels["Dire"]]:
+    move_channels = list({channels["Radiant"],channels["Dire"],ctx.author.voice.channel.id})
+    for _ in range(3):
+        for c in move_channels:
             for member in bot.get_channel(c).members:
                 await member.move_to(bot.get_channel(channels["Lobby"]))
-                time.sleep(1e-3)
-        time.sleep(1e-1)
+                await asyncio.sleep(5e-3)
+        await asyncio.sleep(2e-2)
 
 
 @bot.command(name='updateinstructions')
@@ -111,6 +112,7 @@ async def seeCommands(ctx: commands.Context):
     if not await verifyCorrectChannel(ctx.message.channel):
         return
     await ctx.message.channel.send("See *#instructions* for a list of commands")
+
 
 
 # ----- GAME MANAGEMENT FUNCTIONS -----
@@ -145,11 +147,12 @@ async def makeMatch(ctx: commands.Context):
     if game:
         if ctx.message.channel.id != channels["Games"]:
             await ctx.message.channel.send("Creating new game in #games...")
-        await moveToLobby(ctx)
         game_message = await channel.send(game)
         games.setMessagePtr(game_message)
         await game_message.add_reaction(bot.get_emoji(emojis.getEmojiId("creep_radiant")))
         await game_message.add_reaction(bot.get_emoji(emojis.getEmojiId("creep_dire")))
+        await game_message.add_reaction(bot.get_emoji(emojis.getEmojiId("observer")))
+        await moveToLobby(ctx)
     else:
         error_text = f"A game is already in progress: {games.getGameNameAndId()}"
         if ctx.message.channel.id == channels["Games"]:
@@ -219,6 +222,32 @@ async def setWinner(ctx: commands.Context):
     await game_message.edit(content=games.setWinner(winner))
     await moveToLobby(ctx)
 
+# ----- BOT EVENTS -----
+@bot.event
+async def on_voice_state_update(member: discord.member.Member, before: discord.VoiceState, after: discord.VoiceState):
+    if not after or after.channel.id not in [channels['Radiant'], channels['Dire']] or not games.getGame():
+        return
+    game_message = games.getMessagePtr()
+    if not game_message:
+        return
+    cache_message = discord.utils.get(bot.cached_messages, id=game_message.id)
+
+    players = list(); spectators = list()
+    for reaction in cache_message.reactions:
+        if 'Dire' in str(reaction.emoji) or 'Radiant' in str(reaction.emoji):
+            players.extend([user.id async for user in reaction.users() if user.id != bot.user.id])
+        else:
+            spectators.extend([user.id async for user in reaction.users()])
+        
+    if member.id in players+spectators or len(players) >= 10:
+        return
+    
+    await member.move_to(bot.get_channel(channels["Lobby"]))
+    delete_delay = 150       
+    channel = bot.get_channel(channels["Games"])
+    message_text = f"{member.mention} click on your team here, or the observer emoji to spectate!"
+    await channel.send(message_text, delete_after=delete_delay)
+
 
 @bot.event
 async def on_reaction_add(reaction: discord.Reaction, user: discord.member.Member):
@@ -226,8 +255,9 @@ async def on_reaction_add(reaction: discord.Reaction, user: discord.member.Membe
         return
     if not 'Dire' in str(reaction.emoji) and not 'Radiant' in str(reaction.emoji):
         return
-    if not users.isUser(user.id):
-        await reaction.remove(user)
+    if not users.isUser(discord_id=user.id):
+        channel = bot.get_channel(channels["Commands"])
+        await channel.send(users.addUser(user.id, name=user.name))
         return
     current_game = games.getCurrentGameMessageId()
     if current_game and current_game == reaction.message.id:
@@ -270,8 +300,21 @@ async def displayUser(ctx: commands.Context):
         return
     await ctx.message.channel.send(games.showUserStats(ctx.message.author.id, ['-me']))
 
-def limitSplit(message):
-    return [message[:2000]]
+def limitSplit(message, limit=2000):
+    rows = message.split('\n')
+    message_list = []
+    submessage=""
+    monospace = False
+    for row in [r+'\n' for r in rows]:
+        if len(submessage)+len(row) > limit-3*monospace: # -3 for potential ```
+            message_list.append(submessage+'```'*monospace)
+            submessage = '```'*monospace+row
+        else:
+            if '```' in row:
+                monospace = not monospace
+            submessage += row
+    message_list.append(submessage)
+    return message_list
 
 @bot.command(name='stats')
 async def displayStats(ctx: commands.Context):
@@ -293,7 +336,9 @@ async def displayScoreboard(ctx: commands.Context):
     if len(args) > 1:
         if args[1] == '-full':
             full = True
-    await ctx.message.channel.send(users.showScoreboard(discord_id = ctx.message.author.id, full=full))
+    message = users.showScoreboard(discord_id = ctx.message.author.id, full=full)
+    for submessage in limitSplit(message):
+        await ctx.message.channel.send(submessage)
 
 @bot.command(name='leaderboard')
 async def displayLeaderboard(ctx: commands.Context):
@@ -301,7 +346,7 @@ async def displayLeaderboard(ctx: commands.Context):
 
 
 @bot.command(name='setname')
-async def registerUser(ctx: commands.Context):
+async def renameUser(ctx: commands.Context):
     if not await verifyCorrectChannel(ctx.message.channel, user=ctx.message.author.id):
         return
 
