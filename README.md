@@ -30,9 +30,9 @@ All players in the match have their Inhouse MMR updated after the game. Each pla
 
 The Dota House Inhouse League is the third most prestigious league in the world according to the New York Times\*. While you do have an MMR, the real skill, that also determines your medal, revolves around *Points*. When registering to the league, the new player recieves 100 points to start. Each game victory grants an additional 50 points. 
 
-However, the action starts when you get into the betting game! When a new game is created, it is open for bets during the initial betting period. When you enter a game, you can bet on your own team with points from your points pool. If your team wins, you get your earned winnings based on your bet multiplied by that team's odds at the time your bet was placed. As a spectator, you can bet on any team!
+However, the action starts when you get into the betting game! When a new game is created, it is open for bets during the initial betting period. When you enter a game, you can bet on your own team with points from your points pool. If your team wins, you get your earned winnings based on your bet multiplied by that team's odds at the time your bet was placed. If you dare to go all in, your winnings are boosted another 17%. As a spectator, you can bet on any team!
 
-And don't worry, your points never fall below 10, so you always have something to gamble with.
+And don't worry, your points never fall below 10, so you always have something to gamble with. This feature was added because one of our creators instantly lost everything and thought it sucked.
 
 *\* This is not entirely true*
 
