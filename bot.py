@@ -255,12 +255,11 @@ async def on_reaction_add(reaction: discord.Reaction, user: discord.member.Membe
         return
     if not 'Dire' in str(reaction.emoji) and not 'Radiant' in str(reaction.emoji):
         return
-    if not users.isUser(discord_id=user.id):
-        channel = bot.get_channel(channels["Commands"])
-        await channel.send(users.addUser(user.id, name=user.name))
-        return
     current_game = games.getCurrentGameMessageId()
     if current_game and current_game == reaction.message.id:
+        if not users.isUser(discord_id=user.id):
+            channel = bot.get_channel(channels["Commands"])
+            await channel.send(users.addUser(user.id, name=user.name))
         team = 'Dire' if 'Dire' in str(reaction.emoji) else 'Radiant'
         if not games.addToTeam(user.id, team):
             await reaction.remove(user)
