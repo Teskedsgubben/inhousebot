@@ -29,11 +29,11 @@ class gameManager:
             self.loadFromJson()
         else:
             self.game_list = []
-        try:
-            from indicator import indicator
-            self.indicator = indicator(red_pin=21, green_pin=26)
-        except:
-            self.indicator = None
+        # try:
+        #     from indicator import indicator
+        #     self.indicator = indicator(red_pin=21, green_pin=26)
+        # except:
+        #     self.indicator = None
     
     def loadFromJson(self):
         try:
@@ -107,8 +107,8 @@ class gameManager:
         game['created'] = datetime.datetime.now().strftime(date_format)
         
         self.current_game = game
-        if self.indicator:
-            self.indicator.setReady()
+        # if self.indicator:
+        #     self.indicator.setReady()
         return self.showGame()
 
     def getGame(self, game_id: int = None):
@@ -163,8 +163,8 @@ class gameManager:
         game['teams'][team].append(discord_id)
         if game_id:
             self.writeToJson()
-        if self.indicator and len(players) >= 9:
-            self.indicator.setBusy()
+        # if self.indicator and len(players) >= 9:
+        #     self.indicator.setBusy()
         
         return True
     
@@ -218,8 +218,8 @@ class gameManager:
             return False
         self.current_game['teams'][team].remove(discord_id)
         
-        if self.indicator:
-            self.indicator.setReady()
+        # if self.indicator:
+        #     self.indicator.setReady()
         return True
 
     # ╚ ╔ ╝ ╗ ║ ═ ╠ ╣ ╩ ╦ ╬ 
@@ -310,6 +310,6 @@ class gameManager:
         self.writeToJson()
         self.current_game = None
         self.current_message_ptr = None
-        if self.indicator:
-            self.indicator.setOff()
+        # if self.indicator:
+        #     self.indicator.setOff()
         return victory_text
