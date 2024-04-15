@@ -91,7 +91,7 @@ class userTable:
     def getName(self, discord_id):
         user = self.getUser(discord_id)
         if not user:
-            return None
+            return '- Unknown plebian -'
         return user['name']
     
     def isUser(self, discord_id):
