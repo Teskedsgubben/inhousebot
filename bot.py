@@ -225,7 +225,9 @@ async def setWinner(ctx: commands.Context):
 # ----- BOT EVENTS -----
 @bot.event
 async def on_voice_state_update(member: discord.member.Member, before: discord.VoiceState, after: discord.VoiceState):
-    if not after or after.channel.id not in [channels['Radiant'], channels['Dire']] or not games.getGame():
+    if not after:
+        return
+    if after.channel.id not in [channels['Radiant'], channels['Dire']]:
         return
     game_message = games.getMessagePtr()
     if not game_message:
