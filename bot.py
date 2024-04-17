@@ -244,11 +244,11 @@ async def on_voice_state_update(member: discord.member.Member, before: discord.V
     if member.id in players+spectators or len(players) >= 10:
         return
     
-    await member.move_to(bot.get_channel(channels["Lobby"]))
     delete_delay = 150       
     channel = bot.get_channel(channels["Games"])
     message_text = f"{member.mention} click on your team here, or the observer emoji to spectate!"
     await channel.send(message_text, delete_after=delete_delay)
+    await member.move_to(bot.get_channel(channels["Lobby"]))
 
 
 @bot.event
