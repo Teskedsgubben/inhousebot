@@ -172,7 +172,7 @@ class userTable:
             ratio = self.getScoreRank(user_list[i]['id'], user_list)
 
             name = user_list[i]['name'].replace('_','\\_') if user_list[i]['id'] != discord_id else '**__'+user_list[i]['name'].replace('_','\\_')+'__**'
-            message += f"{'## '*(ratio == 1.0)}{emojis.medal(ratio=ratio)} {i+1}. {name}: **{user_list[i]['points']}**\n"
+            message += f"{'## '*(ratio == 1.0)}{emojis.medal(ratio=ratio**0.75)} {i+1}. {name}: **{user_list[i]['points']}**\n"
 
         if not full and len(user_list) > preview:
             message += '`...`\n'
