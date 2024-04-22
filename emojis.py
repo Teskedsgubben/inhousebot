@@ -69,7 +69,7 @@ class emojiLib:
             if ratio == 1:
                 return self.emojis['medals']['immortal']
             medal_order = ['herald','guardian','crusader','archon','legend','ancient','divine']
-            medal_index = floor(ratio*len(medal_order))
+            medal_index = floor(ratio**(2/3)*len(medal_order))
             return self.emojis['medals'][medal_order[medal_index]]
         
 emojis = emojiLib()
