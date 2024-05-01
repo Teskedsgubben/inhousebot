@@ -227,6 +227,10 @@ async def setWinner(ctx: commands.Context):
 async def on_voice_state_update(member: discord.member.Member, before: discord.VoiceState, after: discord.VoiceState):
     if not after:
         return
+    if not after.channel:
+        return
+    if member.id in banished_users:
+        banishMove(member)
     if after.channel.id not in [channels['Radiant'], channels['Dire']]:
         return
     game_message = games.getMessagePtr()
@@ -234,21 +238,21 @@ async def on_voice_state_update(member: discord.member.Member, before: discord.V
         return
     cache_message = discord.utils.get(bot.cached_messages, id=game_message.id)
 
-    players = list(); spectators = list()
+    players = games.getPlayers()
+    if member.id in players or len(players) >= 10:
+        return
+
+    spectators = list()
     for reaction in cache_message.reactions:
-        if 'Dire' in str(reaction.emoji) or 'Radiant' in str(reaction.emoji):
-            players.extend([user.id async for user in reaction.users() if user.id != bot.user.id])
-        else:
+        if 'Observer' in str(reaction.emoji):
             spectators.extend([user.id async for user in reaction.users()])
         
-    if member.id in players+spectators or len(players) >= 10:
-        return
-    
-    delete_delay = 150       
-    channel = bot.get_channel(channels["Games"])
-    message_text = f"{member.mention} click on your team here, or the observer emoji to spectate!"
-    await channel.send(message_text, delete_after=delete_delay)
-    await member.move_to(bot.get_channel(channels["Lobby"]))
+    if member.id not in spectators:
+        delete_delay = 150       
+        channel = bot.get_channel(channels["Games"])
+        message_text = f"{member.mention} click on your team here, or the observer emoji to spectate!"
+        await channel.send(message_text, delete_after=delete_delay)
+        await member.move_to(bot.get_channel(channels["Lobby"]))
 
 
 @bot.event
@@ -369,6 +373,34 @@ async def addId(ctx: commands.Context):
         await ctx.message.channel.send(users.addCustomId(ctx.message.author.id,args[1],args[2]))
 
 ### ADMIN COMMANDS ###
+banished_users=[]
+@bot.command(name='banish')
+async def banishUser(ctx: commands.Context):
+    if ctx.message.author.id not in config['admins'].values():
+        await ctx.message.channel.send("The banish command can only be used by admins, respect authority")
+        return
+    args = ctx.message.content.split(' ')
+    if '-r' in args:
+        if args[2] in banished_users:
+            banished_users.remove(args[2])
+            await ctx.message.channel.send(f"Heroically saved {args[2]}")
+        else:
+            await ctx.message.channel.send(f"Dafaq? {args[2]} isn't even banned")
+    elif '-a' in args:
+        banished_users.append(args[2])
+        await ctx.message.channel.send(f"User {args[2]} is now banished into eternal exile")
+    print(f"Banished users updated: {banished_users}")
+
+
+async def banishMove(member):
+    # == 224608707231744000:
+    if not member:
+        print(f"Couldn't find member: {member.id}")
+        return
+    await member.move_to(bot.get_channel(1233755145884663880))
+    await bot.get_channel(842045131301060619).send(f"{member.mention} tried to move, but is pathetically banished. Shame, shaaaame, SHAAAAAME!!")
+
+
 @bot.command(name='purge')
 async def purgeChannel(ctx: commands.Context):
     if ctx.message.author.id not in config['admins'].values():
