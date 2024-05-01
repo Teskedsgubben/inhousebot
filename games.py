@@ -143,6 +143,12 @@ class gameManager:
         if not game:
             return []
         return game['teams']['radiant'] + game['teams']['dire']
+    
+    def getPlayers(self, game_id: int = None):
+        game = self.getGame(game_id)
+        if not game:
+            return None
+        return game['teams']['radiant'] + game['teams']['dire']
 
     def getCurrentGameMessageId(self, game_id: int = None):
         game = self.getGame(game_id)
