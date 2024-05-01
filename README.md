@@ -2,14 +2,11 @@
 
 *Welcome to DHIL - The Dota House Inhouse League*
 
-Join us by typing `/register` in the commands channel! Playing games using the bot allows you to keep track of your stats, earn points, bet on games and more!
-
 **Protip**: Mute the commands channel, it may get messy...
 
 ### Quickstart
-
-- Type all commands in *#commands*
-- Start a new game with `/newgame gamename`
+ 
+- Start a new game with `/newgame gamename` in *#commands*
 - Join teams by reacting to the creeps in *#games*
 - Place bets with `/bet XXX` or `/bet XXX team`
 - After the game, set winning team with `/winner team`
@@ -18,7 +15,7 @@ Join us by typing `/register` in the commands channel! Playing games using the b
 
 Typing `/newgame` in the *#commands* channel creates a new game in the *#games* channel. You can add a name to the game like `/newgame gamename` when creating it. 
 
-The bot now posts the game in the *#games* channel as a professionally styled message. The bot adds reactions with a Radiant <:Creep_Radiant:1207041014481682502> and Dire <:Creep_Dire:1207041042780790784> creep automatically. Players can join the respective team by clicking that creep, which will automatically move them into the *:loud_sound: Radiant* or *:loud_sound: Dire* voice channel. 
+The bot now posts the game in the *#games* channel as a professionally styled message. The bot adds reactions with a Radiant <:Creep_Radiant:1207041014481682502> and Dire <:Creep_Dire:1207041042780790784> creep automatically. Players can join the respective team by clicking that creep, which will automatically move them into the *:loud_sound: Radiant* or *:loud_sound: Dire* voice channel. Trying to move into those voice channels manually will move you back to the Lobby, unless you marked observer or both teams are full.
 
 For a limited time after creating the game, players can place their bets. Players that have joined the game can do so like `/bet 100` to place a bet of 100 on their own team. Players not in the game can bet on any team like `/bet 100 radiant`. Note that joining the other team after placing that bet will discard it, no 322 here. Leaving the team will activate it again though.
 
@@ -55,6 +52,7 @@ This MMR value is used when computing the odds of the game. This inderectly impl
 - **/stats**: Shows statistics based on passed flags
 - **/mystats**: Your stats, shorthand for /stats -me
 - **/scoreboard**: Show the summarized scoreboard for all players
+- **/leaderboard**: Same as scoreboard
 
 *Other Commands*
 - **/test**: See if the bot is even alive
