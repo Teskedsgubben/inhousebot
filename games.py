@@ -201,9 +201,9 @@ class gameManager:
         if not game:
             return 0
         if not discord_id:
-            return sum([bet['bet_winnings'] for bet in game['bets']])
+            return sum([bet['winnings'] for bet in game['bets']])
         else:
-            return sum([bet['bet_winnings'] for bet in game['bets'] if game['bets'] == discord_id])
+            return sum([bet['winnings'] for bet in game['bets'] if bet['user'] == discord_id])
 
 
     def getPlayerTeam(self, discord_id, game_id: int = None):
