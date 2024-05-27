@@ -144,12 +144,28 @@ class userTable:
     
     # └ ┌ ┘ ┐ │ ─ ├ ┤ ┴ ┬ ┼
     # ╚ ╔ ╝ ╗ ║ ═ ╠ ╣ ╩ ╦ ╬ 
-    def showAllUsers(self):
+    def showAllUsers(self, sort_by: str = 'name'):
         message = f"```┌{20*'─'}─┬─{6*'─'}─┬─{5*'─'}─┬─{4*'─'}─┬─{5*'─'}┐\n"
         message += f"│{'{0:<20}'.format('Name')} │ {'{0:^6}'.format('Points')} │ {'{0:^5}'.format('Games')} │ {'{0:^4}'.format('WR')} │ {'{0:^5}'.format('MMR')}│\n"
         message += f"├{20*'─'}─┼─{6*'─'}─┼─{5*'─'}─┼─{4*'─'}─┼─{5*'─'}┤\n"
         user_list = list(self.user_list)
-        user_list.sort(key = lambda u : u['name'])
+        
+        # "id": None, "name": None, "joined": None, "points": 100, "mmr": 3000, "stats": {"wins": 0, "losses": 0}
+        if sort_by.lower() == 'name':
+            user_list.sort(key = lambda u : u['name'].lower())
+        elif sort_by.lower() == 'mmr':
+            user_list.sort(key = lambda u : u['mmr'], reverse=True)
+        elif sort_by.lower() == 'games':
+            user_list.sort(key = lambda u : u['wins']+u['losses'], reverse=True)
+        elif sort_by.lower() == 'wins':
+            user_list.sort(key = lambda u : u['wins'], reverse=True)
+        elif sort_by.lower() == 'losses':
+            user_list.sort(key = lambda u : u['losses'], reverse=True)
+        elif sort_by.lower() == 'wr':
+            user_list.sort(key = lambda u : u['wins']/(u['wins']+u['losses']), reverse=True)
+        else:
+            user_list.sort(key = lambda u : u['name'].lower())
+
         for user in user_list:
             w = user['stats']['wins']
             l = user['stats']['losses']
@@ -164,14 +180,15 @@ class userTable:
         user_list = self.getScoreList()
         if not user_list:
             return "No players yet"
-        message = f"# {emojis.getEmoji('dotahouse')} SCOREBOARD {emojis.getEmoji('points')}\n"
+        message = f"# {emojis.getEmoji('dotahouse')} LEADERBOARD {emojis.getEmoji('points')}\n"
         # message += "──────────────\n"
         preview = 6
         length = len(user_list) if full else min(preview, len(user_list))
         for i in range(length):
             ratio = self.getScoreRank(user_list[i]['id'], user_list)
-
-            name = user_list[i]['name'].replace('_','\\_') if user_list[i]['id'] != discord_id else '**__'+user_list[i]['name'].replace('_','\\_')+'__**'
+            name = user_list[i]['name'].replace('_','\\_').replace('*','\\*') 
+            if discord_id is not None and user_list[i]['id'] == discord_id:
+                name = f"**__{name}__**"
             message += f"{'## '*(ratio == 1.0)}{emojis.medal(ratio=ratio)} {i+1}. {name}: **{user_list[i]['points']}**\n"
 
         if not full and len(user_list) > preview:
