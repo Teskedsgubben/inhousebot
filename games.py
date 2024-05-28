@@ -194,16 +194,17 @@ class gameManager:
             'winnings': winnings
         }
         game['bets'].append(bet)
-        return f"{bool(all_in)*'ALL IN BET! '}Bet of {bet_value} placed on the {team.capitalize()}. Potential winnings: {winnings}"
+        
+        return f"{bool(all_in)*'ALL IN BET! '}{self.users.getName(discord_id)} placed a bet of {bet_value} on the {team.capitalize()}. Potential winnings: **{winnings}** (+{winnings-bet_value})"
 
     def getTotalBetValue(self, discord_id = None, game_id: int = None):
         game = self.getGame(game_id)
         if not game:
             return 0
         if not discord_id:
-            return sum([bet['winnings'] for bet in game['bets']])
+            return sum([bet['bet_value'] for bet in game['bets']])
         else:
-            return sum([bet['winnings'] for bet in game['bets'] if bet['user'] == discord_id])
+            return sum([bet['bet_value'] for bet in game['bets'] if bet['user'] == discord_id])
 
 
     def getPlayerTeam(self, discord_id, game_id: int = None):
@@ -275,6 +276,8 @@ class gameManager:
             return self.users.showAllUsers()
         return
     
+    def getCompletedGames(self):
+        return [g for g in self.game_list if g['winner'].lower()!='none']
 
     def setMessagePtr(self, message_ptr, game_id: int = None):
         game = self.getGame(game_id)
