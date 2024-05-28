@@ -7,6 +7,7 @@ from users import userTable
 from games import gameManager
 from discord.ext import commands
 from emojis import emojis
+import plotter
 
 path = '/home/felix/inhousebot/'
 
@@ -16,9 +17,6 @@ with open(path+"creds.json") as infile:
 with open(path+"config.json") as infile:
     config = json.load(infile)
     channels = config["channels"]
-
-game_members = []
-force_move = True
 
 intent = discord.Intents.all()
 bot = commands.Bot(command_prefix='/', intents=intent)
@@ -96,6 +94,12 @@ async def moveToLobby(ctx: commands.Context):
         await asyncio.sleep(2e-2)
 
 
+@bot.command(name='updateleaderboard')
+async def updateLeaderboard(ctx: commands.Context):
+    if not await verifyCorrectChannel(ctx.message.channel, user=ctx.message.author.id):
+        return
+    await updateLeaderboardChannel()
+
 @bot.command(name='updateinstructions')
 async def updateInstructions(ctx: commands.Context):
     if not await verifyCorrectChannel(ctx.message.channel, user=ctx.message.author.id):
@@ -149,40 +153,18 @@ async def makeMatch(ctx: commands.Context):
     if game:
         if ctx.message.channel.id != channels["Games"]:
             await ctx.message.channel.send("Creating new game in #games...")
-        game_members = []
         game_message = await channel.send(game)
         games.setMessagePtr(game_message)
         await game_message.add_reaction(bot.get_emoji(emojis.getEmojiId("creep_radiant")))
         await game_message.add_reaction(bot.get_emoji(emojis.getEmojiId("creep_dire")))
         await game_message.add_reaction(bot.get_emoji(emojis.getEmojiId("observer")))
-        await moveToLobby(ctx)
+        # await moveToLobby(ctx)
     else:
         error_text = f"A game is already in progress: {games.getGameNameAndId()}"
         if ctx.message.channel.id == channels["Games"]:
             await ctx.message.channel.send(error_text, delete_after=delete_delay)
         else:
             await ctx.message.channel.send(error_text)
-
-@bot.command(name='forcemove')
-async def toggleForceMove(ctx: commands.Context):
-    if not await verifyCorrectChannel(ctx.message.channel, user=ctx.message.author.id):
-        return
-    args = ctx.message.content.split(' ')
-    if len(args) == 1:
-        force_move = not force_move
-    elif args[1].lower() == 'on':
-        force_move = True
-    elif args[1].lower() == 'off':
-        force_move = False
-    else:
-        await ctx.message.channel.send(f"Usage: \"/forcemove\" to toggle on/off, or specify state with \"/forcemove on\" or \"/forcemove off\".")
-        return
-    
-    if force_move:
-        await ctx.message.channel.send(f"Force move ON. Players now have to use the game message reactions to change channel.")
-    else:
-        await ctx.message.channel.send(f"Force move OFF. Players can now move freely between inhouse voice channels.")
-
 
 
 @bot.command(name='bet')
@@ -203,9 +185,12 @@ async def placeBet(ctx: commands.Context):
         return
 
     balance = users.getPointsBalance(ctx.message.author.id)
-    bet_value = balance if args[1] == all_in else abs(int(args[1])) 
+    bet_value = balance if args[1] == all_in else abs(int(args[1]))
+    if bet_value < 0:
+        await ctx.message.channel.send(f"Bet is negative... That makes no sense...?")
+        return
     if bet_value > balance:
-        await ctx.message.channel.send(f"Bet too big, you ain't that packed. You have {balance} {emojis.getEmoji('points')}")
+        await ctx.message.channel.send(f"Bet too big, you ain't that packed. You only have {balance} {emojis.getEmoji('points')} to spend")
         return
 
     player_team = games.getPlayerTeam(ctx.message.author.id)
@@ -246,9 +231,9 @@ async def setWinner(ctx: commands.Context):
     game_message = games.getMessagePtr()
     await game_message.edit(content=games.setWinner(winner))
     await moveToLobby(ctx)
-    await updateLeaderboard()
+    await updateLeaderboardChannel()
 
-async def updateLeaderboard():
+async def updateLeaderboardChannel():
     channel = bot.get_channel(channels["Leaderboard"])
     await channel.purge()
     message = users.showScoreboard(full=True)
@@ -263,35 +248,25 @@ async def on_voice_state_update(member: discord.member.Member, before: discord.V
         return
     if not after.channel:
         return
-    # if member.id in banished_users:
-    #     banishMove(member)
-    #     return
-    # if not force_move:
-    #     return
-    
+    if member.voice.channel is None:
+        return
     if after.channel.id not in [channels['Radiant'], channels['Dire']]:
-        return
-    if member.id in game_members:
-        return
-    
-
-    # game_message = games.getMessagePtr()
-    # if not game_message:
-    #     return
+        return    
 
     players = games.getPlayers()
     if member.id in players or len(players) >= 10:
         return
 
+    game_message = games.getMessagePtr()
+    if not game_message:
+        return
     
-    # cache_message = discord.utils.get(bot.cached_messages, id=game_message.id)
-    # for reaction in [r for r in cache_message.reactions if 'Radiant' in str(r.emoji) or 'Dire' in str(r.emoji) or 'Observer' in str(r.emoji)]:
-    #     async for user in reaction.users():
-    #         if user.id == member.id:
-    #             return
+    cache_message = discord.utils.get(bot.cached_messages, id=game_message.id)
+    for reaction in [r for r in cache_message.reactions if 'Observer' in str(r.emoji)]:
+        async for user in reaction.users():
+            if user.id == member.id:
+                return
         
-    # print(f"Moving {member.id} because not in {players} or observer")
-    # if member.id not in players and member.id not in game_members:
     delete_delay = 150
     channel = bot.get_channel(channels["Games"])
     message_text = f"{member.mention} click on your team here, or the observer emoji to spectate!"
@@ -304,10 +279,7 @@ async def on_reaction_add(reaction: discord.Reaction, user: discord.member.Membe
     if bot.user.id == user.id or reaction.message.channel.id != channels['Games']:
         return
     if not 'Dire' in str(reaction.emoji) and not 'Radiant' in str(reaction.emoji):
-        if 'Observer' in str(reaction.emoji):
-            game_members.append(user.id)
         return
-    game_members.append(user.id)
     current_game = games.getCurrentGameMessageId()
     if current_game and current_game == reaction.message.id:
         if not users.isUser(discord_id=user.id):
@@ -380,6 +352,19 @@ async def displayStats(ctx: commands.Context):
         await ctx.message.channel.send(submessage)
     return
 
+@bot.command(name='pointsgraph')
+async def displayPointsGraph(ctx: commands.Context):
+    if not await verifyCorrectChannel(ctx.message.channel, user=ctx.message.author.id):
+        return
+    args = ctx.message.content.split(' ')
+    players = [ctx.message.author.id]
+    if len(args)>1:
+        other_players = json.loads(' '.join(args[1:]))
+        if type(other_players) == list:
+            other_players = filter(lambda user: user is not None, [users.getUserFromName(p) for p in other_players])
+            players += [p['id'] for p in other_players]
+    plotter.createPointsGraph(games, users, players)
+    await ctx.channel.send(file=discord.File('plot.png'))
 
 @bot.command(name='scoreboard')
 async def displayScoreboard(ctx: commands.Context):
