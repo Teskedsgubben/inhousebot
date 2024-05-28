@@ -79,6 +79,12 @@ class userTable:
             return None
         return user[0]
     
+    def getUserFromName(self, name:str):
+        user = [user for user in self.user_list if user["name"] == name]
+        if not user:
+            return None
+        return user[0]
+    
     def getUserMMR(self, discord_id):
         user = self.getUser(discord_id)
         if not user:
@@ -273,9 +279,7 @@ class userTable:
         
 
 if __name__ == "__main__":
-    table = userTable(filename = 'users.json')
-    discord_id = 186
-    print(table.addUser(discord_id, steam_id=982))
-    print(table.setName(discord_id, "Felix"))
-    print(table.getUserByCustomId("steam_id", 982))
+    users = userTable(filename = 'users.json')
+    name = 'Feediot player'
+    print(f"ID of {name} is: {users.getUserFromName('Feediot player')}")
 
