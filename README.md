@@ -27,7 +27,9 @@ All players in the match have their Inhouse MMR updated after the game. Each pla
 
 The Dota House Inhouse League is the third most prestigious league in the world according to the New York Times\*. While you do have an MMR, the real skill, that also determines your medal, revolves around *Points*. When registering to the league, the new player recieves 100 points to start. Each game victory grants an additional 50 points. 
 
-However, the action starts when you get into the betting game! When a new game is created, it is open for bets during the initial betting period. When you enter a game, you can bet on your own team with points from your points pool. If your team wins, you get your earned winnings based on your bet multiplied by that team's odds at the time your bet was placed. If you dare to go all in, your winnings are boosted another 17%. As a spectator, you can bet on any team!
+However, the action starts when you get into the betting game! When a new game is created, it is open for bets during the initial betting period. When you enter a game, you can bet on your own team with points from your points pool. If your team wins, you get your earned winnings based on your bet multiplied by that team's odds at the time your bet was placed. 
+
+You can boost your winnings even further! Daring to go all in will boost your winnings by 17%. As a spectator, you can bet on any team, or on *random* to boost your winnings another 17%! There are also perks you can unlock, that increase your points gain in various ways.
 
 And don't worry, your points never fall below 10, so you always have something to gamble with. This feature was added because one of our creators instantly lost everything and thought it sucked.
 
@@ -44,15 +46,15 @@ This MMR value is used when computing the odds of the game. This inderectly impl
 ### List of commands
 
 *DHIL Commands*
-- **/register**: Register your account as a user to start tracking stats
 - **/setname**: Change your display name in the DH Inhouse League
 - **/newgame**: Starts a new game in the *#games* channel
 - **/bet**: Bet your points on a team, use "all" to go all in
 - **/winner**: Registers a winner to the current game and shuts it down
 - **/stats**: Shows statistics based on passed flags
 - **/mystats**: Your stats, shorthand for /stats -me
-- **/scoreboard**: Show the summarized scoreboard for all players
-- **/leaderboard**: Same as scoreboard
+- **/leaderboard**: Show the summarized scoreboard for all players
+- **/showperks**: Show the perk you can buy and their benefit
+- **/buyperk**: Redeem a perk from the perks list
 
 *Other Commands*
 - **/test**: See if the bot is even alive
