@@ -127,7 +127,7 @@ class gameManager:
         game = self.getGame(game_id)
         if not game:
             return "No game found"
-        return f"Game **{game['name']}** with id **{game['id']}**"
+        return f"game **{game['name']}** with ID **{game['id']}**"
 
     def getGameByMessageId(self, message_id):
         if self.current_game:
@@ -150,7 +150,7 @@ class gameManager:
             return None
         return game['teams']['radiant'] + game['teams']['dire']
 
-    def getCurrentGameMessageId(self, game_id: int = None):
+    def getGameMessageId(self, game_id: int = None):
         game = self.getGame(game_id)
         if not game:
             return None
@@ -174,19 +174,25 @@ class gameManager:
         
         return True
     
-    def addBet(self, discord_id, bet_value, team: str):
+    def addBet(self, discord_id, bet_value: int, team: str):
         game = self.getGame()
         if not game:
             return "No active game"
         created = datetime.datetime.strptime(game['created'], date_format)
         now = datetime.datetime.now()
         minutes_since_creation = (now-created).total_seconds()/60
-        if minutes_since_creation > 15:
+        if minutes_since_creation > 21:
             return "Bets for this game have closed"
+        random_team = False
+        if team.lower() == 'random':
+            random_team = True
+            team = random.choice(['radiant','dire'])
         if team.lower() not in [t.lower() for t in self.getBlankGame()['teams'].keys()]:
             return f"{team} is not a valid team?"
-        all_in = 0.17*(self.users.getPointsBalance(discord_id) == bet_value)
-        winnings = round(self.getGameOdds(team)*bet_value)
+        bonus_all_in = 0.17*(self.users.getPointsBalance(discord_id, include_bets=False) == bet_value)
+        bonus_random = 0.10*random_team
+        bonus_midas = 0.05*(self.users.hasPerk(discord_id, 'midas') and not random_team)
+        winnings = round(self.getGameOdds(team)*bet_value*(1+bonus_all_in+bonus_random+bonus_midas))
         bet = {
             'user': discord_id,
             'bet_value': bet_value,
@@ -195,7 +201,7 @@ class gameManager:
         }
         game['bets'].append(bet)
         
-        return f"{bool(all_in)*'ALL IN BET! '}{self.users.getName(discord_id)} placed a bet of {bet_value} on the {team.capitalize()}. Potential winnings: **{winnings}** (+{winnings-bet_value})"
+        return f"{bool(bonus_all_in)*'ALL IN BET! '}{self.users.getName(discord_id)} placed a {random_team*'RANDOM '}bet of {bet_value} on the {team.capitalize()}. Potential winnings: **{winnings}** (+{winnings-bet_value})"
 
     def getTotalBetValue(self, discord_id = None, game_id: int = None):
         game = self.getGame(game_id)
@@ -292,33 +298,94 @@ class gameManager:
         Archived games only store the message id.'''
         return self.current_message_ptr
     
-    def setWinner(self, winning_team: str):
-        if not self.current_game:
-            return "Can't set winner. No ongoing game."
+    # Shorthands for user functions
+    def getAllPerks(self):
+        return self.users.getAllPerks()
+    def readTransactions(self):
+        return self.users.readTransactions()
+    def writeTransaction(self, discord_id, item_type, item_spec, cost, date_time:datetime.datetime = datetime.datetime.now()):
+        '''Writes a transaction to file
+        discord_id = discord_id of buyer
+        item_type = perk, tip etc
+        item_spec = specific perk name, target player etc
+        cost = points spent by buyer
+        date_time = optional, uses datetime.datetime.now() if not specified'''
+        return self.users.writeTransaction(self, discord_id, item_type, item_spec, cost, date_time)
+  
+
+    def computeScoreChanges(self, game_id: int = None):
+        game = self.getGame(game_id)
+        scores = {}
+        if not game:
+            return scores
+        for team, players in game['teams'].items():
+            for player in players:
+                if team.lower() == game['winner'].lower():
+                    scores.update({player: 1})
+                else:
+                    scores.update({player: -1})
+        return scores
+
+    def computePointsPayouts(self, game_id: int = None):
+        game = self.getGame(game_id)
+        payouts = {}
+        if not game:
+            return payouts
+        players = set(game['teams']['radiant'] + game['teams']['dire'] + [bet['user'] for bet in game['bets']])
+        for player in players:
+            balance=self.users.getPointsBalance(player, include_bets=False)
+            perks = self.users.getUserPerks(player)
+            payouts.update({player: self.computeUserPayout(player, game_id, balance, perks)})
+        return payouts
+    
+    def computeUserPayout(self, discord_id, game_id: int = None, balance: int = None, perks: list = []):
+        game = self.getGame(game_id)
+        payout = 0
+        if not game:
+            return 0
+        
+        for team, players in game['teams'].items():
+            if discord_id in players:
+                if team.lower() == game['winner'].lower():
+                    payout += 50 + 20*('inflation' in perks)
+                else:
+                    payout += 10*('win-win' in perks)
+        for bet in game['bets']:
+            if bet['user'] != discord_id:
+                continue
+            if bet['bet_team'].lower() == game['winner'].lower():
+                payout += bet['winnings']-bet['bet_value']
+            else:
+                payout += -bet['bet_value']*(1-0.1*('hedged' in perks))
+        if balance is not None:
+            if balance + payout < 10:
+                payout = -balance + 10
+        return round(payout)
+
+    def setWinner(self, winning_team: str, game_id: int = None):
+        game = self.getGame(game_id)
+        if not game:
+            return "Can't set winner. No ongoing game or invalid Game ID."
         if winning_team.lower() not in ['radiant','dire','none']:
             return f"{winning_team} isn't a valid winner ffs, use either Radiant, Dire or None"
-        self.current_game['winner'] = winning_team.capitalize()
-        victory_text = self.showGame()
-        self.game_list.append(self.current_game)
+        if game['winner'] in ['radiant','dire']:
+            return f"Game {game['id']} already has winner {game['winner']}, reverting is not implemented yet"
+        game['winner'] = winning_team.capitalize()
+        victory_text = self.showGame(game_id)
         if winning_team.lower() != 'none':
-            for team, players in self.current_game['teams'].items():
-                for player in players:
-                    score = 1 if team == winning_team else -1
-                    self.users.addScore(player,score)
-                    if team == winning_team:
-                        self.users.addPoints(player,50)
-            for bet in self.current_game['bets']:
-                if winning_team == bet['bet_team']:
-                    self.users.addPoints(bet['user'],bet['winnings']-bet['bet_value'])
-                else:
-                    self.users.addPoints(bet['user'],-bet['bet_value'])
-                if self.users.getPointsBalance(bet['user']) < 10:
-                    self.users.addPoints(bet['user'],10 - self.users.getPointsBalance(bet['user']))
+            for user, score in self.computeScoreChanges(game_id).items():
+                self.users.addScore(user, score)
+            for user, payout in self.computePointsPayouts(game_id).items():
+                self.users.addPoints(user, payout)
             self.users.writeToJson()
 
+        if game == self.current_game:
+            self.game_list.append(game)
+            self.current_game = None
+            self.current_message_ptr = None
+
         self.writeToJson()
-        self.current_game = None
-        self.current_message_ptr = None
-        # if self.indicator:
-        #     self.indicator.setOff()
         return victory_text
+    
+    def changeWinner(self, winning_team: str):
+        return
