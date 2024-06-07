@@ -1,3 +1,5 @@
+import os
+import csv
 import json
 import datetime
 from emojis import emojis
@@ -16,6 +18,7 @@ medals = {
 class userTable:
     def __init__(self, filename: str = None, game_manager = None):
         self.filename = filename
+        self.transactions_file = 'transactions.csv'
         self.game_manager = game_manager
         if self.filename:
             self.loadFromJson()
@@ -26,6 +29,13 @@ class userTable:
         try:
             with open(self.filename) as input:
                 self.user_list = json.load(input)
+                for user in self.user_list:
+                    if 'other_ids' in user.keys():
+                        del user['other_ids']
+                    if 'perks' not in user.keys():
+                        user.update({'perks': []})
+                    elif type(user['perks']) == dict:
+                        user['perks'] = list(user['perks'].keys())
         except:
             self.user_list = []
             print(f"No user json found at: {self.filename}")
@@ -44,9 +54,7 @@ class userTable:
             "joined": None,
             "points": 100,
             "mmr": 3000,
-            "other_ids": {
-                "steam_id": []
-            },
+            "perks": [],
             "stats": {
                 "wins": 0,
                 "losses": 0
@@ -56,23 +64,6 @@ class userTable:
     def setGameManager(self, game_manager):
         self.game_manager = game_manager
 
-    def checkValidType(self, id_type: str):
-        if id_type not in self.getBlankUser()["other_ids"].keys():
-            return False
-        return True
-    
-    def getInvalidTypeError(self, id_type: str):
-        return f"{id_type} is not a valid id type. Available types are {list(self.getBlankUser()['other_ids'].keys())}."
-
-    
-    def getAllUsersByIdType(self, id_type: str):
-        '''Returns a list of all ids of a certain type, such as discord_id or associated steam_id'''
-        if id_type == 'discord_id':
-            return [user["id"] for user in self.user_list]
-        elif not self.checkValidType(id_type):
-            return
-        return [user["other_ids"][id_type] for user in self.user_list if user["other_ids"][id_type]]
-    
     def getUser(self, discord_id):
         user = [user for user in self.user_list if user["id"] == discord_id]
         if not user:
@@ -91,6 +82,19 @@ class userTable:
             return None
         return int(user['mmr'])
     
+    def getUserPerks(self, discord_id):
+        user = self.getUser(discord_id)
+        if not user:
+            return []
+        return user['perks']
+    
+    def hasPerk(self, discord_id, perk_name):
+        '''Returns True if the user has specified perk, otherwise False'''
+        user = self.getUser(discord_id)
+        if not user:
+            return False
+        return perk_name in user['perks']
+    
     def getAllUserIds(self):
         return [user['id'] for user in self.user_list]
     
@@ -106,13 +110,12 @@ class userTable:
             return False
         return True
 
-    def getPointsBalance(self, discord_id):
+    def getPointsBalance(self, discord_id, include_bets = True):
         user = self.getUser(discord_id)
         if not user:
             return 0
-        return user['points'] - self.game_manager.getTotalBetValue(discord_id)
+        return user['points'] - include_bets*self.game_manager.getTotalBetValue(discord_id)
 
-    
     def getUserByCustomId(self, id_type: str, id):
         if not self.checkValidType(id_type):
             return None
@@ -121,6 +124,15 @@ class userTable:
             return None
         return user[0]
     
+    def getUserByName(self, name: str, return_only_id: bool = False):
+        user = [user for user in self.user_list if name == user['name']]
+        if not user:
+            return None
+        if return_only_id:
+            return user[0]['id']
+        else:
+            return user[0]
+    
     # Stats
     def showUser(self, discord_id):
         message = ""
@@ -128,11 +140,6 @@ class userTable:
         if not user:
             return "Bruh, you ain't even registered..."
         message += f"```Showing summary for discord id {user['id']}```\n"
-        # for id_type, ids in user['other_ids'].items():
-        #     if ids:
-        #         message += f" - Associated {id_type}s: {ids}\n"
-        #     else:
-        #         message += f" - No associated {id_type}s\n"
         
         w = user['stats']['wins'];   l = user['stats']['losses']
         wr = 0 if w+l == 0 else round(100*w/(w+l))
@@ -145,6 +152,10 @@ class userTable:
         message += f"Inhouse MMR: **{mmr}**\n"
         message += f"Lifetime games: **{w+l}**\n"
         message += f"Lifetime winrate: **{wr}%**\n"
+        message += f"Unlocked perks: {len(user['perks'])}\n"
+        for perk in user['perks']:
+            message += f"- {perk.capitalize()}\n"
+
         
         return message
     
@@ -225,7 +236,7 @@ class userTable:
     
 
     # Adders, Setters and Removers
-    def addUser(self, discord_id, name = None, steam_id=None):
+    def addUser(self, discord_id, name = None):
         '''Adds a new user to the table based on their discord id. Other ids may be added by keyworded arguments.'''
         if self.getUser(discord_id):
             return f"Error: User with discord_id {discord_id} already exists. Se instructions to add other ids to your discord account."
@@ -235,14 +246,13 @@ class userTable:
         user["joined"] = str(datetime.datetime.today().date())
         self.user_list.append(user)
 
-        suffix = ""
-        if steam_id:
-            suffix += '\n'+self.addCustomId(discord_id, 'steam_id', steam_id)
         self.writeToJson()
-        return f"Welcome {user['name']}, you are now registered. There's no turning back now..."+suffix
+        return f"Welcome {user['name']}, you are now registered. There's no turning back now..."
         
     def addScore(self, discord_id, score: int):
         user = self.getUser(discord_id)
+        if not user:
+            return
         w = user['stats']['wins'];   l = user['stats']['losses']
         mmr_delta = score * (25 + (w+l < 10)*(10-w-l)*25)
         user['mmr'] = round(user['mmr'] + mmr_delta)
@@ -257,17 +267,85 @@ class userTable:
             return
         user['points'] += points
 
-    def addCustomId(self, discord_id, id_type: str, id):
-        if not self.checkValidType(id_type):
-            return self.getInvalidTypeError(id_type)
-        existing_user = self.getUserByCustomId(id_type, id)
-        if existing_user:
-            return f"Error: {id_type} is already associated with discord user {existing_user['name']}"
+    def tipUser(self, source_user, target_user, tip_value):
+        if not self.isUser(source_user) or not self.isUser(target_user):
+            return f"Couldn't locate users for tipping"
+        
+        if tip_value > -10+self.getPointsBalance(source_user, include_bets=True):
+            return f"You're trying to tip more than you can afford, you can't tip below 10 points..."
+        
+        self.addPoints(source_user, -tip_value)
+        self.addPoints(target_user, tip_value)
+        self.writeTransaction(source_user, 'tip', target_user, tip_value)
+        self.writeToJson()
+        return f"**{self.getName(source_user)}** tipped **{self.getName(target_user)}** with **{tip_value}** points!"
+
+
+    def getAllPerks(self):
+        return {
+            'win-win': {
+                'cost': 1500,
+                'desc': "Losses also give +10 points"
+            },
+            'inflation': {
+                'cost': 3000,
+                'desc': "Wins give an additional +20 points"
+            },
+            'hedged': {
+                'cost': 5000,
+                'desc': "Lost bets return 10% of the points"
+            },
+            'midas': {
+                'cost': 5000,
+                'desc': "Gives permanent 5% increase to all bet winnings (does not work with random bets)"
+            }
+        }
+
+    def addPerk(self, discord_id, perk_name):
+        user = self.getUser(discord_id)
+        if not user:
+            return "Couldn't add perk, not registered or something?"
+        perk_name = perk_name.lower()
+        if perk_name not in self.getAllPerks().keys():
+            return f"**{perk_name.capitalize()}** is not a valid perk"
+        
+        perk = self.getAllPerks()[perk_name]
+        if perk['cost'] > self.getPointsBalance(discord_id,include_bets=True):
+            return f"You're too poor for this perk, you need another {perk['cost'] - self.getPointsBalance(discord_id,include_bets=True)} points to unlock {perk_name.capitalize()}."
+        
+        if perk_name in user['perks']:
+            return f"{user.getName()} already has {perk_name.capitalize()}."
+        
+        user['perks'].append(perk_name.lower())
+        self.addPoints(discord_id, -perk['cost'])
+        self.writeTransaction(user['id'], 'perk', perk_name, perk['cost'])
+        self.writeToJson()
+        return f"{self.getName(discord_id)} successfully unlocked the {perk_name.capitalize()} perk!"
+
+    def writeTransaction(self, discord_id, item_type, item_spec, cost, date_time:datetime.datetime = datetime.datetime.now()):
+        '''Writes a transaction to file
+        discord_id = discord_id of buyer
+        item_type = perk, tip etc
+        item_spec = specific perk name, target player etc
+        cost = points spent by buyer
+        date_time = optional, uses datetime.datetime.now() if not specified'''
+        
+        if not os.path.isfile(self.transactions_file):
+            fp = open(self.transactions_file, 'w+')
+            fp.write('user,item_type,item_spec,cost,date_time\n')
         else:
-            user = self.getUser(discord_id)
-            user["other_ids"][id_type].append(id)
-            self.writeToJson()
-            return f"Success: {id_type} {id} was added to user {user['name']}"
+            fp = open(self.transactions_file, 'a+')
+        fp.write(','.join([str(discord_id), str(item_type), str(item_spec), str(cost), str(date_time)])+'\n')
+        fp.close()
+
+    def readTransactions(self):
+        if os.path.isfile(self.transactions_file):
+            with open(self.transactions_file,'r') as input:
+                reader = csv.DictReader(input)
+                transactions = [row for row in reader]
+        else:
+            transactions = []
+        return transactions
 
     def setName(self, discord_id, name: str):
         user = self.getUser(discord_id)
