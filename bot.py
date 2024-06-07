@@ -152,7 +152,7 @@ async def makeMatch(ctx: commands.Context):
     game = games.startNewGame(name)
     if game:
         if ctx.message.channel.id != channels["Games"]:
-            await ctx.message.channel.send("Creating new game in #games...")
+            await ctx.message.channel.send(f"{users.getName(ctx.message.author.id)} created {games.getGameNameAndId()} in #games...")
         game_message = await channel.send(game)
         games.setMessagePtr(game_message)
         await game_message.add_reaction(bot.get_emoji(emojis.getEmojiId("creep_radiant")))
@@ -167,6 +167,37 @@ async def makeMatch(ctx: commands.Context):
             await ctx.message.channel.send(error_text)
 
 
+@bot.command(name='tip')
+async def tipUser(ctx: commands.Context):
+    if not await verifyCorrectChannel(ctx.message.channel, user=ctx.message.author.id):
+        return
+
+    if not users.isUser(ctx.message.author.id):
+        await ctx.message.channel.send("User not registered")
+        return
+
+    args = ctx.message.content.split(' ')
+    if len(args) < 3:
+        await ctx.message.channel.send("Too few arguments. Usage: /tip XXX username")
+        return
+    
+    if not args[1].isnumeric():
+        await ctx.message.channel.send("Second argument needs to be numeric")
+        return
+    value = int(abs(round(float(args[1]))))
+    source_user = ctx.message.author.id
+    target_user = users.getUserByName(' '.join(args[2:]), return_only_id=True)
+    if not target_user:
+        await ctx.message.channel.send(f"Couldn't find user {' '.join(args[2:])} to tip")
+        return
+    if value > -10+users.getPointsBalance(source_user, include_bets=True):
+        await ctx.message.channel.send(f"You're trying to tip more than you can afford, you can't tip below 10 points...")
+        return
+    
+    await ctx.message.channel.send(users.tipUser(source_user, target_user, value))
+    await updateLeaderboardChannel()
+
+
 @bot.command(name='bet')
 async def placeBet(ctx: commands.Context):
     if not await verifyCorrectChannel(ctx.message.channel, user=ctx.message.author.id):
@@ -177,14 +208,18 @@ async def placeBet(ctx: commands.Context):
 
     args = ctx.message.content.split(' ')
     if len(args) == 1:
-        await ctx.message.channel.send(f"Usage: /bet XXX [team]")
+        await ctx.message.channel.send(f"Usage: /bet XXX team")
         return
     all_in = 'all'
+    balance = users.getPointsBalance(ctx.message.author.id)
+
+    if args[1][-1] == '%' and args[1].strip('%').isnumeric():
+        args[1] = str(round(balance*abs(int(args[1].strip('%')))/100))
+
     if not args[1].isnumeric() and args[1] != all_in:
-        await ctx.message.channel.send(f"Usage: /bet XXX [team]")
+        await ctx.message.channel.send(f"Usage: /bet XXX team")
         return
 
-    balance = users.getPointsBalance(ctx.message.author.id)
     bet_value = balance if args[1] == all_in else abs(int(args[1]))
     if bet_value < 0:
         await ctx.message.channel.send(f"Bet is negative... That makes no sense...?")
@@ -227,7 +262,7 @@ async def setWinner(ctx: commands.Context):
     if winner not in ['radiant', 'dire', 'none']:
         await ctx.message.channel.send(f"Invalid winner. Must be **radiant**, **dire** or **none**")
         return
-    await ctx.message.channel.send(f"Game ended with winner: {winner}")
+    await ctx.message.channel.send(f"Game ended with winner: {winner.capitalize()}")
     game_message = games.getMessagePtr()
     await game_message.edit(content=games.setWinner(winner))
     await moveToLobby(ctx)
@@ -280,7 +315,7 @@ async def on_reaction_add(reaction: discord.Reaction, user: discord.member.Membe
         return
     if not 'Dire' in str(reaction.emoji) and not 'Radiant' in str(reaction.emoji):
         return
-    current_game = games.getCurrentGameMessageId()
+    current_game = games.getGameMessageId()
     if current_game and current_game == reaction.message.id:
         if not users.isUser(discord_id=user.id):
             channel = bot.get_channel(channels["Commands"])
@@ -302,7 +337,7 @@ async def on_reaction_remove(reaction: discord.Reaction, user: discord.member.Me
         return
     if 'Dire' not in str(reaction.emoji) and 'Radiant' not in str(reaction.emoji):
         return
-    current_game = games.getCurrentGameMessageId()
+    current_game = games.getGameMessageId()
     if current_game and current_game == reaction.message.id:
         team = 'Dire' if 'Dire' in str(reaction.emoji) else 'Radiant'
         games.removeFromTeam(user.id, team)
@@ -395,16 +430,27 @@ async def renameUser(ctx: commands.Context):
     name = ' '.join(ctx.message.content.split(' ')[1:])
     await ctx.message.channel.send(users.setName(ctx.message.author.id, name))
 
-@bot.command(name='addid')
-async def addId(ctx: commands.Context):
+
+@bot.command(name='showperks')
+async def showPerks(ctx: commands.Context):
+    if not await verifyCorrectChannel(ctx.message.channel):
+        return
+    message = ""
+    for perk, meta in users.getAllPerks().items():
+        message += f"### {perk.capitalize()}\n- Cost: {meta['cost']}\n- Perk: {meta['desc']}\n"
+    await ctx.message.channel.send(message)
+
+
+@bot.command(name='buyperk')
+async def addPerk(ctx: commands.Context):
     if not await verifyCorrectChannel(ctx.message.channel):
         return
     args = ctx.message.content.split(' ')
-    if len(args) != 3:
-        quant = "few" if len(args) < 3 else "many"
-        await ctx.message.channel.send(f"Too {quant} arguments. Usage: `/addid id_type id_value`")
+    if len(args) != 2:
+        quant = "few" if len(args) < 2 else "many"
+        await ctx.message.channel.send(f"Too {quant} arguments. Usage: `/buyperk perk_name`")
     else:
-        await ctx.message.channel.send(users.addCustomId(ctx.message.author.id,args[1],args[2]))
+        await ctx.message.channel.send(users.addPerk(ctx.message.author.id,args[1].lower()))
 
 ### ADMIN COMMANDS ###
 banished_users=[]
@@ -480,14 +526,79 @@ async def retroAddUser(ctx: commands.Context):
         await ctx.message.channel.send(f"Invalid game")
         return
 
-    game_message_id = games.getCurrentGameMessageId(game_id)
+    game_message_id = games.getGameMessageId(game_id)
 
     if not games.addToTeam(user_id, team_id, game_id=game_id):
         await ctx.message.channel.send(f"Failed to add user retroactively, player already in game or team full?")
         return
-    game_message = bot.get_channel(channels['Games']).fetch_message(game_message_id)
+    game_message = await bot.get_channel(channels['Games']).fetch_message(game_message_id)
     await game_message.edit(content=games.showGame(game_id))
 
+@bot.command(name='changewinner')
+async def setWinner(ctx: commands.Context):
+    if not await verifyCorrectChannel(ctx.message.channel, user=ctx.message.author.id):
+        return
+    if ctx.message.author.id not in config['admins'].values():
+        await ctx.message.channel.send("changewinner is only available to admins")
+        return
+    
+    args = ctx.message.content.split(' ')
+    if len(args) != 3:
+        quant = "few" if len(args) < 3 else "many"
+        await ctx.message.channel.send(f"Too {quant} arguments. Usage: `/changewinner game_id team`")
+        return
+    game_id = args[1]
+    if not game_id.isnumeric():
+        await ctx.message.channel.send(f"Second argument needs to be numeric game id")
+        return
+    game_id = int(game_id)
+    winner = args[2].lower()
+    if winner not in ['radiant','dire']:
+        await ctx.message.channel.send(f"Team {winner} is not radiant or dire")
+        return
+
+
+    if not games.getGame(game_id):
+        await ctx.message.channel.send(f"No game with id {game_id} found")
+        return
+
+    await ctx.message.channel.send(f"Game {game_id} set winner to: {winner.capitalize()}")
+
+    game_message_id = games.getGameMessageId(game_id)
+    game_message = await bot.get_channel(channels['Games']).fetch_message(game_message_id)
+    await game_message.edit(content=games.setWinner(winner, game_id))
+    await updateLeaderboardChannel()
+
+
+@bot.command(name='updategame')
+async def updateGameMessage(ctx: commands.Context):
+    if not await verifyCorrectChannel(ctx.message.channel, user=ctx.message.author.id):
+        return
+    if ctx.message.author.id not in config['admins'].values():
+        await ctx.message.channel.send("updategame is only available to admins")
+        return
+    
+    args = ctx.message.content.split(' ')
+    if len(args) != 2:
+        quant = "few" if len(args) < 2 else "many"
+        await ctx.message.channel.send(f"Too {quant} arguments. Usage: `/updategame game_id`")
+        return
+    game_id = args[1]
+    if not game_id.isnumeric():
+        await ctx.message.channel.send(f"Second argument needs to be numeric game id")
+        return
+    game_id = int(game_id)
+
+    if not games.getGame(game_id):
+        await ctx.message.channel.send(f"No game with id {game_id} found")
+        return
+
+    await ctx.message.channel.send(f"Game {game_id} updated in #games")
+
+    game_message_id = games.getGameMessageId(game_id)
+    game_message = await bot.get_channel(channels['Games']).fetch_message(game_message_id)
+    await game_message.edit(content=games.showGame(game_id))
+    await updateLeaderboardChannel()
 
 
 # ------------ RUN BOT ------------
