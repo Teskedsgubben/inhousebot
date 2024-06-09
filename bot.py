@@ -287,14 +287,16 @@ async def on_voice_state_update(member: discord.member.Member, before: discord.V
         return
     if after.channel.id not in [channels['Radiant'], channels['Dire']]:
         return    
-
+    
+    game_message = games.getMessagePtr()
+    if not game_message:
+        return
+    
     players = games.getPlayers()
     if member.id in players or len(players) >= 10:
         return
 
-    game_message = games.getMessagePtr()
-    if not game_message:
-        return
+    
     
     cache_message = discord.utils.get(bot.cached_messages, id=game_message.id)
     for reaction in [r for r in cache_message.reactions if 'Observer' in str(r.emoji)]:
@@ -598,7 +600,7 @@ async def updateGameMessage(ctx: commands.Context):
     game_message_id = games.getGameMessageId(game_id)
     game_message = await bot.get_channel(channels['Games']).fetch_message(game_message_id)
     await game_message.edit(content=games.showGame(game_id))
-    await updateLeaderboardChannel()
+    # await updateLeaderboardChannel()
 
 
 # ------------ RUN BOT ------------
