@@ -66,3 +66,12 @@ def allstats(games, users, user1):
     return lista
 
 
+if __name__ == '__main__':
+    from users import userTable
+    from games import gameManager
+    import json
+    users = userTable("users.json")
+    games = gameManager("games.json", users=users)
+    with open('dummy.json','w') as output:
+
+        json.dump(allstats(games, users, 278980793139724288), output)
