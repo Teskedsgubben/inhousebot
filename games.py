@@ -66,8 +66,8 @@ class gameManager:
             "winner": None
         }
     
-    def getGameOdds(self, requested_team: str = None):
-        game = self.getGame()
+    def getGameOdds(self, requested_team: str = None, game_id: int = None):
+        game = self.getGame(game_id)
         avg_odds = 1.8
         if not game:
             return {'radiant': avg_odds, 'dire': avg_odds}
@@ -147,7 +147,7 @@ class gameManager:
     def getPlayers(self, game_id: int = None):
         game = self.getGame(game_id)
         if not game:
-            return None
+            return []
         return game['teams']['radiant'] + game['teams']['dire']
 
     def getGameMessageId(self, game_id: int = None):
@@ -240,12 +240,11 @@ class gameManager:
         game = self.getGame(game_id)
         if not game:
             return f"No game to show"
-        message  = f"# {emojis.getEmoji('dotahouse')}   INHOUSE GAME   {game['emoji']}\n```"
-        message += f" - Game ID: {game['id']}\n"
-        message += f" - Name:    {game['name']}\n"
-        message += f" - Date:    {game['created']}\n"
-        message += f" - Winner:  {'Active game!' if not game['winner'] else game['winner']}\n"
-        message += f"\n╔{'═'*21}╦{'═'*21}╗\n"
+        message  = f"# {emojis.getEmoji('dotahouse')}   INHOUSE GAME   {game['emoji']}\n"
+        message += f"> **Game ID**: {game['id']}\n"
+        message += f"> **Name**: {game['name']}\n"
+        message += f"> **Date**: {game['created']}\n"
+        message += f"```diff\n╔{'═'*21}╦{'═'*21}╗\n"
         message += f"║ {'{0:^20}'.format('RADIANT')}║{'{0:^20}'.format('DIRE')} ║\n"
         message += f"╠{'═'*21}╬{'═'*21}╣\n"
         empty = '-empty-'
@@ -259,16 +258,31 @@ class gameManager:
             message += f"║ {radiant_player}║{dire_player} ║\n"
         message += f"╠{'═'*21}╬{'═'*21}╣\n"
         
-        odds = self.getGameOdds()
+        odds = self.getGameOdds(game_id=game_id)
         message += f"║ {'{0:^20}'.format('Odds: '+str(odds['radiant']))}║{'{0:^20}'.format('Odds: '+str(odds['dire']))} ║\n"
-        message += f"╚{'═'*21}╩{'═'*21}╝\n"
-        message += f"\n{'{0:<20}'.format('Player bets')}{'{0:>8}'.format('Bet')} {'{0:>8}'.format('Team')} {'{0:>7}'.format('Pot')}\n"
+        message += f"╚{'═'*21}╩{'═'*21}╝\n\n"
+        message += f"± {'{0:<18}'.format('Player bets')}{'{0:>8}'.format('Bet')} {'{0:>8}'.format('Team')} {'{0:>7}'.format('Pot')}\n"
         for bet in game['bets']:
-            message += f"{'{0:<20}'.format(self.users.getName(bet['user'])[:20])}{'{0:>8}'.format(bet['bet_value'])} {'{0:>8}'.format(bet['bet_team'].capitalize())} {'{0:>7}'.format(bet['winnings'])}\n"
-        message += "\nWhen ready, click on a creep to join that team!```"
-        if game['winner'] and game['winner'].lower() != 'none':
-            message += '\n## Winner ' + emojis.getEmoji(f"creep_{game['winner'].lower()}")
+            message += self.betSymbol(bet['bet_team'], game['winner'])
+            message += f" {'{0:<18}'.format(self.users.getName(bet['user'])[:18])}{'{0:>8}'.format(bet['bet_value'])} {'{0:>8}'.format(bet['bet_team'].capitalize())} {'{0:>7}'.format(bet['winnings'])}\n"
+        if not game['winner']:
+            win_status = 'Active game!'
+        elif game['winner'].lower() == 'none':
+            win_status = 'None...'
+        else:
+            win_status =  f"{game['winner']} " + emojis.getEmoji(f"creep_{game['winner'].lower()}")
+        message += f"```\n## Winner: {win_status}"
         return message
+    
+    def betSymbol(self, bet_team, winning_team):
+        if winning_team is None:
+            return '•'
+        if winning_team.lower() == 'none':
+            return '×'
+        if winning_team.lower() == bet_team.lower():
+            return '+'
+        return '-'
+        
 
     def showUserStats(self, discord_id, args:list = None):
         allowed_args = ['-full', '-me', '-vs']
