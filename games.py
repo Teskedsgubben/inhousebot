@@ -63,7 +63,8 @@ class gameManager:
                 "radiant": [],
                 "dire": [],
             },
-            "winner": None
+            "winner": None,
+            "comment": None
         }
     
     def getGameOdds(self, requested_team: str = None, game_id: int = None):
@@ -71,6 +72,8 @@ class gameManager:
         avg_odds = 1.8
         if not game:
             return {'radiant': avg_odds, 'dire': avg_odds}
+        if 'odds' in game.keys() and game['winner']:
+            return game['odds']
         mmrs = {}
         fallback_mmr = self.users.getBlankUser()['mmr']
         for team in ['radiant', 'dire']:
@@ -112,7 +115,7 @@ class gameManager:
         return self.showGame()
 
     def getGame(self, game_id: int = None):
-        if not game_id:
+        if not game_id or self.current_game['id'] == game_id:
             return self.current_game
         else:
             game = [game for game in self.game_list if game["id"] == game_id]
@@ -241,8 +244,8 @@ class gameManager:
         if not game:
             return f"No game to show"
         message  = f"# {emojis.getEmoji('dotahouse')}   INHOUSE GAME   {game['emoji']}\n"
+        message += f"> **{game['name']}**\n"
         message += f"> **Game ID**: {game['id']}\n"
-        message += f"> **Name**: {game['name']}\n"
         message += f"> **Date**: {game['created']}\n"
         message += f"```diff\n╔{'═'*21}╦{'═'*21}╗\n"
         message += f"║ {'{0:^20}'.format('RADIANT')}║{'{0:^20}'.format('DIRE')} ║\n"
@@ -272,6 +275,9 @@ class gameManager:
         else:
             win_status =  f"{game['winner']} " + emojis.getEmoji(f"creep_{game['winner'].lower()}")
         message += f"```\n## Winner: {win_status}"
+        if 'comment' in game.keys() and game['comment']:
+            message += f"\n*\"{game['comment']}\"*"
+
         return message
     
     def betSymbol(self, bet_team, winning_team):
@@ -358,25 +364,41 @@ class gameManager:
         if not game:
             return 0
         
+        win_payout = 50 + 20*('inflation' in perks)
+        loss_payout = 10*('win-win' in perks)
+        
+        cheerleader = 'cheerleader' in perks
         for team, players in game['teams'].items():
             if discord_id in players:
+                cheerleader = False
                 if team.lower() == game['winner'].lower():
-                    payout += 50 + 20*('inflation' in perks)
+                    payout += win_payout
                 else:
-                    payout += 10*('win-win' in perks)
-        for bet in game['bets']:
-            if bet['user'] != discord_id:
-                continue
+                    payout += loss_payout
+
+        player_bets = [b for b in game['bets'] if b['user'] == discord_id]
+        if cheerleader:
+            for bet in player_bets:
+                if bet['bet_team'] != player_bets[0]['bet_team']:
+                    cheerleader = False
+        
+        for bet in player_bets:
             if bet['bet_team'].lower() == game['winner'].lower():
                 payout += bet['winnings']-bet['bet_value']
+                if cheerleader and bet['bet_value'] > 10:
+                    payout += win_payout/2
+                    cheerleader = False
             else:
                 payout += -bet['bet_value']*(1-0.1*('hedged' in perks))
+                if cheerleader and bet['bet_value'] > 10:
+                    payout += loss_payout/2
+                    cheerleader = False
         if balance is not None:
             if balance + payout < 10:
                 payout = -balance + 10
         return round(payout)
 
-    def setWinner(self, winning_team: str, game_id: int = None):
+    def setWinner(self, winning_team: str, game_id: int = None, comment: str = None):
         game = self.getGame(game_id)
         if not game:
             return "Can't set winner. No ongoing game or invalid Game ID."
@@ -384,7 +406,9 @@ class gameManager:
             return f"{winning_team} isn't a valid winner ffs, use either Radiant, Dire or None"
         if game['winner'] in ['radiant','dire']:
             return f"Game {game['id']} already has winner {game['winner']}, reverting is not implemented yet"
+        game['odds'] = self.getGameOdds(game_id)
         game['winner'] = winning_team.capitalize()
+        game.update({'comment': comment.capitalize()})
         victory_text = self.showGame(game_id)
         if winning_team.lower() != 'none':
             for user, score in self.computeScoreChanges(game_id).items():
