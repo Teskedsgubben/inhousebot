@@ -105,10 +105,10 @@ class userTable:
         return user['name']
     
     def isUser(self, discord_id):
-        user = [user for user in self.user_list if user["id"] == discord_id]
-        if not user:
-            return False
-        return True
+        users = [user["id"] for user in self.user_list]
+        if discord_id in users:
+            return True
+        return False
 
     def getPointsBalance(self, discord_id, include_bets = True):
         user = self.getUser(discord_id)
@@ -287,6 +287,10 @@ class userTable:
                 'cost': 1500,
                 'desc': "Losses also give +10 points"
             },
+            'cheerleader': {
+                'cost': 2000,
+                'desc': "Spectator bets give 50% win/loss points *(for bets above 10 on 1 team)*"
+            },
             'inflation': {
                 'cost': 3000,
                 'desc': "Wins give an additional +20 points"
@@ -297,7 +301,7 @@ class userTable:
             },
             'midas': {
                 'cost': 5000,
-                'desc': "Gives permanent 5% increase to all bet winnings (does not work with random bets)"
+                'desc': "Gives 5% increase to bet winnings *(does not work with random bets)*"
             }
         }
 
@@ -351,6 +355,8 @@ class userTable:
         user = self.getUser(discord_id)
         if not user:
             return f"No account found for discord_id {discord_id}"
+        if self.getUserByName(name) is not None:
+            return f"The name {name} is already taken... gosh darn it"
         user["name"] = name
         self.writeToJson()
         return f"The name {name} is now associated with your account."
