@@ -254,17 +254,18 @@ async def setWinner(ctx: commands.Context):
         await ctx.message.channel.send("No active game found")
         return
     args = ctx.message.content.split(' ')
-    if len(args) != 2:
-        quant = "few" if len(args) < 2 else "many"
-        await ctx.message.channel.send(f"Too {quant} arguments. Usage: `/winner radiant/dire/none`")
+    if len(args) < 2:
+        await ctx.message.channel.send(f"Too few arguments. Usage: `/winner radiant/dire/none optional comment`")
         return
     winner = args[1].lower()
     if winner not in ['radiant', 'dire', 'none']:
         await ctx.message.channel.send(f"Invalid winner. Must be **radiant**, **dire** or **none**")
         return
+    comment = ' '.join(args[2:])
+
     await ctx.message.channel.send(f"Game ended with winner: {winner.capitalize()}")
     game_message = games.getMessagePtr()
-    await game_message.edit(content=games.setWinner(winner))
+    await game_message.edit(content=games.setWinner(winner, comment=comment))
     await moveToLobby(ctx)
     await updateLeaderboardChannel()
 
@@ -328,6 +329,8 @@ async def on_reaction_add(reaction: discord.Reaction, user: discord.member.Membe
             return
         game_message = games.getMessagePtr()
         await game_message.edit(content=games.showGame())
+        # Add check to see if user is connected, triggers errors in the lgo otherwise.
+        # await user.voice.
         await user.move_to(bot.get_channel(channels[team]))
     else:
         if user.id not in games.getPlayersByMessageId(reaction.message.id):
@@ -439,7 +442,7 @@ async def showPerks(ctx: commands.Context):
         return
     message = ""
     for perk, meta in users.getAllPerks().items():
-        message += f"### {perk.capitalize()}\n- Cost: {meta['cost']}\n- Perk: {meta['desc']}\n"
+        message += f"## {perk.capitalize()}\n- **Cost:** {meta['cost']}\n- **Perk:** {meta['desc']}\n- **Buy:** /buyperk {perk.lower()}\n"
     await ctx.message.channel.send(message)
 
 
@@ -536,8 +539,62 @@ async def retroAddUser(ctx: commands.Context):
     game_message = await bot.get_channel(channels['Games']).fetch_message(game_message_id)
     await game_message.edit(content=games.showGame(game_id))
 
+
+@bot.command(name='forceadd')
+async def forceAddUser(ctx: commands.Context):
+    if not await verifyCorrectChannel(ctx.message.channel):
+        return
+    if ctx.message.author.id not in config['admins'].values():
+        await ctx.message.channel.send("forceadd is currently admin only")
+        return
+    
+
+    args = ctx.message.content.split(' ')
+    if len(args) < 4:
+        await ctx.message.channel.send("Usage: /forceadd game_id team [\"player1_id\",\"player2_id\"]")
+        return
+    
+    # radiant: ["291610583210393604","121279392273006595","291610583210393604","257170522654113792","240529541993332737"]
+    # dire: ["154675853064667136","123863796316897283","207903578550042626","170515240184840196","171321137551114240",]
+
+    # RANDOM SHIT FROM HERE DOWN
+    if not args[1].isnumeric():
+        await ctx.message.channel.send("First argument of forceadd needs to be a numeric game id")
+        return
+    if not args[2].lower() in ['radiant','dire']:
+        await ctx.message.channel.send("Second argument of forceadd needs to be a valid team (radiant or dire)")
+        return
+    
+    try:
+        players = json.loads(' '.join(args[3:]),parse_int=True)
+    except:
+        await ctx.message.channel.send("Third argument of forceadd needs to be a list of players' discord_ids")
+        return
+
+    game_id = int(args[1])
+    team = args[2].lower()
+    game = games.getGame(game_id)
+    if not game:
+        await ctx.message.channel.send(f"Couldn't find a game with ID \"{args[1]}\"")
+        return
+
+
+    for player in [int(p) for p in players]:
+        # addToTeam(self, discord_id, team: str, game_id: int = None):
+        if not users.isUser(player):
+            await ctx.message.channel.send(f"Player {player} was not found as a registered player")
+        elif not games.addToTeam(player, team, game_id):
+            await ctx.message.channel.send(f"Couldn't add {player} to the {team} in game {game_id}")
+        else:
+            await ctx.message.channel.send(f"Added {player} to the {team} in game {game_id}!")
+
+    game_message_id = games.getGameMessageId(game_id)
+    game_message = await bot.get_channel(channels['Games']).fetch_message(game_message_id)
+    await game_message.edit(content=games.showGame(game_id))
+
+
 @bot.command(name='changewinner')
-async def setWinner(ctx: commands.Context):
+async def changeWinner(ctx: commands.Context):
     if not await verifyCorrectChannel(ctx.message.channel, user=ctx.message.author.id):
         return
     if ctx.message.author.id not in config['admins'].values():
